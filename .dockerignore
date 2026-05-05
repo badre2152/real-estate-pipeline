@@ -1,0 +1,17 @@
+# GX store — rebuilt fresh inside the container on every run
+gx/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+
+# Virtual environments
+venv/
+.venv/
+env/
+
+# OS files
+.DS_Store
+*.log
