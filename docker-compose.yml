@@ -1,0 +1,44 @@
+services:
+
+  # ── PostgreSQL ──────────────────────────────────────────────────────────────
+  postgres:
+    image: postgres:15
+    container_name: avito_postgres1
+    environment:
+      POSTGRES_USER:     ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB:       ${DB_NAME}
+      
+    ports:
+      
+      
+      - "127.0.0.1:5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      
+      test: ["CMD-SHELL", "PGPASSWORD=${DB_PASSWORD} psql -U ${DB_USER} -d ${DB_NAME} -c 'SELECT 1' -q --no-align --tuples-only"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── Pipeline ────────────────────────────────────────────────────────────────
+  pipeline:
+    build: .
+    container_name: avito_pipeline1
+    depends_on:
+      postgres:
+        condition: service_healthy
+    env_file:
+      - .env
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+    # Chromium يحتاج /dev/shm كافي لـ 25 صفحة — الافتراضي 64MB يسبّب crash
+    shm_size: "512mb"
+    # منع restart لا نهائي إذا فشل الـ scraper — أقصى 3 محاولات
+    restart: on-failure:3
+    command: python src/pipeline.py
+
+volumes:
+  postgres_data:
