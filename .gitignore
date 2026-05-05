@@ -1,0 +1,47 @@
+# Python
+__pycache__/
+.py[cod]
+.pyo
+.pyd
+
+# Virtual environment
+venv/
+.env/
+.venv/
+
+# Environment variables 
+.env
+
+# macOS
+.DS_Store
+
+# Logs
+logs/
+*.log
+
+# Data 
+data/
+.csv
+.parquet
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# Build / packaging
+build/
+dist/
+.egg-info/
+
+# Docker
+.pid
+
+# IDE
+.vscode/
+.idea/
+
+# Testing
+.coverage
+htmlcov/
+
+# Misc
+.swp
