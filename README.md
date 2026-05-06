@@ -1,5 +1,10 @@
 # 🚀 Avito Real Estate Data Pipeline
 
+![Python](https://img.shields.io/badge/python-3.10-blue)
+![Docker](https://img.shields.io/badge/docker-enabled-blue)
+![License](https://img.shields.io/badge/license-MIT-green)
+
+
 End-to-end data engineering project that transforms raw real estate listings from **Avito.ma** into analytics-ready datasets and machine learning features.
 ---
 ## ⚠️ Disclaimer
@@ -84,9 +89,9 @@ data_pipeline/
 │   ├── staging/
 │   ├── clean/
 │   ├── warehouse/
+|   ├── tests/
 │   ├── utils/
-│   └── main.py
-├── tests/
+│   └── pipeline.py
 ├── docs/
 ├── docker-compose.yml
 ├── Dockerfile
@@ -124,7 +129,12 @@ feature_store
 → surface_m2
 → nb_chambres
 → prix_par_m2
-→ age_bien
+→ age_bien 
++ > ⚠️ **Limitation:** `age_bien` is derived from `annee_construction`.
+
++ > This field has **0% fill rate** — Avito does not expose it in the listing HTML.
+
++ > ML models should not rely on `age_bien` until a data source is found.
 → categorie_prix
 ```
 
@@ -158,7 +168,7 @@ _cleanup_staging()   → cleanup
 ### 1. Clone repository
 
 ```bash
-git clone <repo_url>
+git clone <https://github.com/badre2152/real-estate-pipeline.git>
 cd data_pipeline
 ```
 
@@ -168,6 +178,9 @@ cd data_pipeline
 python -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
+
+Check that Great Expectations is installed (required to run the pipeline)
+
 ```
 
 ### 3. Configure environment
@@ -194,7 +207,7 @@ docker-compose up --build
 
 ```bash
 docker-compose up postgres -d
-python src/main.py
+python src/pipeline.py
 ```
 
 ---
@@ -207,7 +220,9 @@ python src/main.py
 
 ## 🔌 Power BI Integration
 
-1. Connect to PostgreSQL
+1. Connect to PostgreSQL 
+> ⚠️ Note: Docker maps PostgreSQL to port **5433** (not the default 5432).
+> Use `localhost:5433` when connecting from Power BI or any external tool.
 2. Import `bi_schema` tables
 3. Use relationships for analysis
 
@@ -249,6 +264,3 @@ pytest
 ## ⭐ Support
 
 If you found this project useful, consider giving it a star ⭐
-![Python](https://img.shields.io/badge/python-3.10-blue)
-![Docker](https://img.shields.io/badge/docker-enabled-blue)
-![License](https://img.shields.io/badge/license-MIT-green)
