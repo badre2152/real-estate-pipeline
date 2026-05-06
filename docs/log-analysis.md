@@ -10,10 +10,10 @@
 | Metric | Value |
 |--------|-------|
 | Total runs | 11 |
-| Successful completions (full pipeline) | 0 |
-| Abort reason | Great Expectations `NameError` / suite conflict |
+| Successful completions (full pipeline) | 1   |
+| Last successful run | 2026-05-05 20:28 |
 | Stages that ran successfully | Extract, Staging |
-| Stages never reached | Clean, BI Schema, ML Schema |
+| Stages completed | Extract, Staging, Clean, BI Schema, ML Schema |
 
 **Root cause:** `gx_silver.py` contained `run_id` (undefined) instead of `run_label`.
 This has been fixed in the current version.
@@ -51,6 +51,14 @@ renders this attribute differently. This is a known scraper limitation.
 | Price 1,287,000 DH (Marrakech, 99m²) | 1 | Likely a sale listing, not rental |
 | Arabic city names (طنجة, مراكش) | 2 | Normalized to French in clean layer |
 | Cross-run duplicate liens | 6 liens duplicated | Handled by `ON CONFLICT DO NOTHING` |
+| Price 500 DH (Tanger)      | 1 | Suspiciously low — possible scraper error |
+| Price 850 DH (Marrakech)   | 1 | Suspiciously low — possible scraper error |
+**Note:** 
++ "COURS ET FORMATIONS" artefacts appear consistently across runs,
+
++ suggesting Avito surfaces these listings persistently on the rental URL.
+
++ The filter in clean_data.py handles them correctly.
 
 ---
 
