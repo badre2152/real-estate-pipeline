@@ -54,11 +54,9 @@ MIGRATIONS: list[tuple[str, str]] = [
          nb_chambres         INTEGER,
          nb_salles_bain      INTEGER,
          etage               TEXT,
-         annee_construction  INTEGER,
          lien                TEXT UNIQUE,
          scraped_at          TIMESTAMP,
          prix_par_m2         NUMERIC,
-         age_bien            INTEGER,
          categorie_prix      TEXT,
          region_label        TEXT,
          is_grande_ville     BOOLEAN,
@@ -73,21 +71,18 @@ MIGRATIONS: list[tuple[str, str]] = [
          id_localisation SERIAL PRIMARY KEY,
          ville           TEXT NOT NULL,
          quartier        TEXT NOT NULL DEFAULT '',
+         quartier_known  BOOLEAN NOT NULL DEFAULT FALSE,
          region_label    TEXT NOT NULL DEFAULT 'Autre',
          is_grande_ville BOOLEAN NOT NULL DEFAULT FALSE,
          UNIQUE (ville, quartier)
      );"""),
 
-    # FIX #7: boot_005 was two DDL statements in one string (CREATE TABLE + CREATE UNIQUE INDEX).
-    # Some drivers execute them as a single statement and fail. Split into two idempotent migrations.
     ("boot_005_bi_dim_caracteristiques",
      """CREATE TABLE IF NOT EXISTS bi_schema.dim_caracteristiques (
          id_caracteristiques SERIAL PRIMARY KEY,
          nb_chambres         BIGINT,
          nb_salles_bain      BIGINT,
-         etage               TEXT NOT NULL DEFAULT '',
-         annee_construction  BIGINT,
-         age_bien            BIGINT
+         etage               TEXT NOT NULL DEFAULT ''
      );"""),
 
     ("boot_005b_bi_dim_caracteristiques_uq_idx",
@@ -95,8 +90,7 @@ MIGRATIONS: list[tuple[str, str]] = [
      ON bi_schema.dim_caracteristiques (
          COALESCE(nb_chambres, -1),
          COALESCE(nb_salles_bain, -1),
-         etage,
-         COALESCE(annee_construction, -1)
+         etage
      );"""),
 
     ("boot_006_bi_dim_temps",
@@ -139,9 +133,7 @@ MIGRATIONS: list[tuple[str, str]] = [
          nb_chambres         INTEGER,
          nb_salles_bain      INTEGER,
          etage               TEXT,
-         annee_construction  INTEGER,
          prix_par_m2         NUMERIC,
-         age_bien            INTEGER,
          categorie_prix      TEXT,
          prix_type           TEXT DEFAULT 'mensuel',
          titre               TEXT,
@@ -238,6 +230,28 @@ MIGRATIONS: list[tuple[str, str]] = [
     # ── ml_schema ──────────────────────────────────────────────────────────
     ("ml_001_add_prix_type",
      "ALTER TABLE ml_schema.feature_store ADD COLUMN IF NOT EXISTS prix_type TEXT DEFAULT 'mensuel';"),
+
+    # ── FIX #Q1: quartier_known column for dim_localisation ────────────────
+    ("bi_006_add_quartier_known",
+     "ALTER TABLE bi_schema.dim_localisation ADD COLUMN IF NOT EXISTS quartier_known BOOLEAN NOT NULL DEFAULT FALSE;"),
+
+    # ── FIX #Q2: drop annee_construction and age_bien from existing DBs ────
+    # These columns are always NULL in Avito data — dropping them keeps schemas clean.
+    # IF EXISTS guards make these safe to run on fresh DBs too.
+    ("clean_008_drop_annee_construction",
+     "ALTER TABLE clean.annonces DROP COLUMN IF EXISTS annee_construction;"),
+    ("clean_009_drop_age_bien",
+     "ALTER TABLE clean.annonces DROP COLUMN IF EXISTS age_bien;"),
+    ("bi_007_drop_annee_construction",
+     "ALTER TABLE bi_schema.dim_caracteristiques DROP COLUMN IF EXISTS annee_construction;"),
+    ("bi_008_drop_age_bien",
+     "ALTER TABLE bi_schema.dim_caracteristiques DROP COLUMN IF EXISTS age_bien;"),
+    ("ml_002_drop_annee_construction",
+     "ALTER TABLE ml_schema.feature_store DROP COLUMN IF EXISTS annee_construction;"),
+    ("ml_003_drop_age_bien",
+     "ALTER TABLE ml_schema.feature_store DROP COLUMN IF EXISTS age_bien;"),
+    ("staging_002_drop_annee_construction",
+     "ALTER TABLE staging.raw_annonces DROP COLUMN IF EXISTS annee_construction;"),
 ]
 
 
