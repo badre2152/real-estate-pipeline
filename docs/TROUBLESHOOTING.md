@@ -62,3 +62,11 @@
 | `CleanValidationError: drop rate too high` | Scraper changed format | Check scraper selectors |
 | `PoolError` | Pool exhausted | Increase `maxconn` in db.py |
 | `GX checkpoint failed` | Data quality regression | Check Data Docs in `gx/` folder |
+
++ ### KI-008 · Bronze path looks duplicated in logs
+
++ **Symptom:** Log shows `/app/src/../src/extract/../../data/bronze/...`
+
++ **Cause:** Relative path resolution in scraper.py uses `__file__` traversal.
+
++ **Impact:** None — path resolves correctly. Cosmetic only.
