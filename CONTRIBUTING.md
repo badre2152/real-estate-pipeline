@@ -11,7 +11,7 @@ Click the **Fork** button on GitHub.
 ### 2. Clone your fork
 
 ```bash
-git clone https://github.com/your-username/avito-data-pipeline.git
+git  clone https://github.com/badre2152/real-estate-pipeline.git
 cd avito-data-pipeline
 ```
 
