@@ -29,7 +29,7 @@ scrape-only:
 docker-up:
 	docker-compose up -d
 	@echo "Waiting for PostgreSQL to be ready..."
-	@sleep 3
+	@docker-compose exec postgres pg_isready -U $${DB_USER} -q || sleep 5
 	@echo "DB is up on port 5433"
 
 docker-down:
@@ -60,12 +60,25 @@ rebuild-gx:
 	python -c "from src.expectations.gx_silver import rebuild_suite; rebuild_suite()"
 
 help:
-	@echo "Available targets:"
-	@echo "  run         Run the full pipeline"
-	@echo "  test        Run all unit tests"
-	@echo "  test-cov    Run tests with coverage report"
-	@echo "  docker-up   Start PostgreSQL via Docker (port 5433)"
-	@echo "  docker-down Stop Docker containers"
-	@echo "  clean-db    Truncate staging and clean tables"
-	@echo "  lint        Syntax-check all Python source files"
-	@echo "  rebuild-gx  Force-rebuild GX expectation suites"
+@echo "Available targets:"
+@echo ""
+@echo "Pipeline:"
+@echo "  run           Run the full pipeline"
+@echo "  migrate       Run DB migrations"
+@echo ""
+@echo "Scraping:"
+@echo "  scrape-full   Full scrape — 25 pages via Docker"
+@echo "  scrape-only   Run scraper only (no DB)"
+@echo ""
+@echo "Testing:"
+@echo "  test          Run all unit tests"
+@echo "  test-cov      Run tests with coverage report"
+@echo ""
+@echo "Data & Quality:"
+@echo "  rebuild-gx    Force-rebuild GX expectation suites"
+@echo "  clean-db      Truncate staging and clean tables"
+@echo ""
+@echo "Dev & Infra:"
+@echo "  docker-up     Start PostgreSQL via Docker (port 5433)"
+@echo "  docker-down   Stop Docker containers"
+@echo "  lint          Syntax-check all Python source files"
