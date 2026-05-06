@@ -1,17 +1,28 @@
-# GX store — rebuilt fresh inside the container on every run
+# 🔐 Secrets — never copy into image
+.env
+
+# 🧬 Git history — not needed inside container
+.git/
+
+# 📦 GX store — rebuilt fresh inside the container
 gx/
 
-# Python cache
+# 🐍 Python cache
 __pycache__/
 *.pyc
 *.pyo
 .pytest_cache/
 
-# Virtual environments
+# 🧱 Virtual environments
 venv/
 .venv/
 env/
 
-# OS files
+# 🧪 Development files
+notebook/
+docs/
+*.md
+
+# 💻 OS files & logs
 .DS_Store
 *.log
