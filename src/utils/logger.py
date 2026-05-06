@@ -25,8 +25,6 @@ def get_logger(name: str) -> logging.Logger:
     ch.setLevel(logging.INFO)
     ch.setFormatter(formatter)
     logger.addHandler(ch)
-
-   
     try:
         os.makedirs(LOG_DIR, exist_ok=True)
         fh = logging.FileHandler(LOG_FILE, encoding="utf-8")
