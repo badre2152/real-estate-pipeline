@@ -411,8 +411,7 @@ def _post_fill_rate_summary(df: pd.DataFrame) -> None:
     COLS = [
         "prix", "prix_type", "ville", "quartier", "surface_m2",
         "nb_chambres", "nb_salles_bain", "etage", "prix_par_m2",
-        "annee_construction", "age_bien", "categorie_prix",
-        "region_label", "is_grande_ville",
+        "categorie_prix", "region_label", "is_grande_ville",
     ]
     lines = [f"  Post-clean fill rates ({n} rows):"]
     for col in COLS:
@@ -494,7 +493,6 @@ def validate_post_clean(df_clean: pd.DataFrame, n_staging: int) -> dict:
         ("categorie_prix"       , lambda: _post_categorie_prix_values(df_clean)),
         ("region_label"         , lambda: _post_region_label_values(df_clean)),
         ("prix_par_m2"          , lambda: _post_prix_par_m2_consistency(df_clean)),
-        ("age_bien"             , lambda: _post_age_bien_valid(df_clean)),
         ("surface_positive"     , lambda: _post_surface_positive(df_clean)),
         ("nb_fields_range"      , lambda: _post_nb_fields_range(df_clean)),
         ("scraped_at"           , lambda: _post_scraped_at_valid(df_clean)),
