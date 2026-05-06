@@ -1,6 +1,6 @@
 # Python
 __pycache__/
-.py[cod]
+*.py[cod]
 .pyo
 .pyd
 
@@ -21,8 +21,8 @@ logs/
 
 # Data 
 data/
-.csv
-.parquet
+*.csv
+*.parquet
 
 # Jupyter Notebook
 .ipynb_checkpoints
