@@ -3,7 +3,7 @@ services:
   # ── PostgreSQL ──────────────────────────────────────────────────────────────
   postgres:
     image: postgres:15
-    container_name: avito_postgres1
+    container_name: avito_postgres2
     environment:
       POSTGRES_USER:     ${DB_USER}
       POSTGRES_PASSWORD: ${DB_PASSWORD}
@@ -25,7 +25,7 @@ services:
   # ── Pipeline ────────────────────────────────────────────────────────────────
   pipeline:
     build: .
-    container_name: avito_pipeline1
+    container_name: avito_pipeline2
     depends_on:
       postgres:
         condition: service_healthy
@@ -34,9 +34,9 @@ services:
     volumes:
       - ./data:/app/data
       - ./logs:/app/logs
-    # Chromium يحتاج /dev/shm كافي لـ 25 صفحة — الافتراضي 64MB يسبّب crash
+    # Chromium needs sufficient /dev/shm for 25 pages — default 64MB causes crash
     shm_size: "512mb"
-    # منع restart لا نهائي إذا فشل الـ scraper — أقصى 3 محاولات
+    # Prevent infinite restart if scraper fails — max 3 attempts
     restart: on-failure:3
     command: python src/pipeline.py
 
