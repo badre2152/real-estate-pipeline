@@ -36,7 +36,6 @@ CREATE TABLE IF NOT EXISTS staging.raw_annonces (
     nb_chambres         TEXT,
     nb_salles_bain      TEXT,
     etage               TEXT,
-    annee_construction  TEXT,
     lien                TEXT,
     scraped_at          TEXT,
     loaded_at           TIMESTAMP DEFAULT NOW()
@@ -55,7 +54,7 @@ ALTER TABLE staging.raw_annonces ADD COLUMN IF NOT EXISTS run_id TEXT NOT NULL D
 _INSERT = """
 INSERT INTO staging.raw_annonces
     (run_id, titre, prix, prix_type, ville, quartier, surface, nb_chambres,
-     nb_salles_bain, etage, annee_construction, lien, scraped_at)
+     nb_salles_bain, etage, lien, scraped_at)
 VALUES %s
 ON CONFLICT (lien) DO UPDATE SET
     run_id     = EXCLUDED.run_id,
@@ -164,7 +163,31 @@ def run_staging(records: list[dict] | None = None, run_id: str | None = None) ->
 
     _qc_report(records)
 
-    # FIX #15: Embed run_id in every row tuple.
+    # FIX STAGING-DUP: Deduplicate by lien BEFORE bulk insert.
+    # PostgreSQL raises "ON CONFLICT DO UPDATE command cannot affect row a second time"
+    # when the same lien appears more than once in a single INSERT batch.
+    # The scraper returns 141+ duplicates (same listing seen on multiple pages).
+    # We keep only the first occurrence per lien — data is identical across duplicates.
+    seen_liens: set = set()
+    deduped_records = []
+    for r in records:
+        if r.get("error") is not None:
+            continue
+        lien = r.get("lien")
+        if lien and lien in seen_liens:
+            continue
+        if lien:
+            seen_liens.add(lien)
+        deduped_records.append(r)
+
+    n_before = len([r for r in records if r.get("error") is None])
+    n_after  = len(deduped_records)
+    if n_before != n_after:
+        logger.info(
+            f"Deduplication: {n_before - n_after} duplicate lien(s) removed "
+            f"before staging insert ({n_after} unique records remaining)."
+        )
+
     rows = [
         (
             run_id,
@@ -177,16 +200,14 @@ def run_staging(records: list[dict] | None = None, run_id: str | None = None) ->
             r.get("nb_chambres"),
             r.get("nb_salles_bain"),
             r.get("etage"),
-            r.get("annee_construction"),
             r.get("lien"),
             r.get("scraped_at"),
         )
-        for r in records
-        if r.get("error") is None
+        for r in deduped_records
     ]
 
     bulk_insert(_INSERT, rows)
     logger.info(
-        f"=== Staging load finished — {len(rows)} rows inserted (run_id={run_id}, duplicates skipped) ==="
+        f"=== Staging load finished — {len(rows)} unique rows inserted (run_id={run_id}) ==="
     )
     return run_id
