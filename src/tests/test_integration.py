@@ -46,8 +46,8 @@ def _make_raw_staging_df(n: int = 25) -> pd.DataFrame:
             "etage": str(i % 6),
             "annee_construction": str(1990 + i % 30) if i % 3 != 0 else None,
             "lien": f"https://www.avito.ma/fr/annonce-{i+1:04d}",
-            "scraped_at": "2024-05-01T10:00:00",
-            "loaded_at": "2024-05-01T10:05:00",
+            "scraped_at": "2026-05-01T10:00:00",
+            "loaded_at" : "2026-05-01T10:05:00",
         })
     return pd.DataFrame(rows)
 
