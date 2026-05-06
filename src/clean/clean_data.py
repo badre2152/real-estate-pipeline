@@ -33,11 +33,9 @@ CREATE TABLE IF NOT EXISTS clean.annonces (
     nb_chambres         INTEGER,
     nb_salles_bain      INTEGER,
     etage               TEXT,
-    annee_construction  INTEGER,
     lien                TEXT UNIQUE,
     scraped_at          TIMESTAMP,
     prix_par_m2         NUMERIC,
-    age_bien            INTEGER,
     categorie_prix      TEXT,
     region_label        TEXT,
     is_grande_ville     BOOLEAN,
@@ -51,8 +49,8 @@ _DDL_MIGRATIONS = []  # kept for reference only
 _INSERT = """
 INSERT INTO clean.annonces
     (titre, prix, prix_type, ville, quartier, surface_m2, nb_chambres,
-     nb_salles_bain, etage, annee_construction, lien, scraped_at,
-     prix_par_m2, age_bien, categorie_prix,
+     nb_salles_bain, etage, lien, scraped_at,
+     prix_par_m2, categorie_prix,
      region_label, is_grande_ville)
 VALUES %s
 ON CONFLICT (lien) DO UPDATE SET
@@ -61,7 +59,6 @@ ON CONFLICT (lien) DO UPDATE SET
     surface_m2    = EXCLUDED.surface_m2,
     nb_chambres   = EXCLUDED.nb_chambres,
     prix_par_m2   = EXCLUDED.prix_par_m2,
-    age_bien      = EXCLUDED.age_bien,
     categorie_prix= EXCLUDED.categorie_prix,
     loaded_at     = NOW()
 """
@@ -185,11 +182,21 @@ _PRIX_MENSUEL_MIN_GRANDE_VILLE = 1_000   # DH — للمدن الكبيرة (Cas
 _PRIX_MENSUEL_MIN_PETITE_VILLE =   400   # DH — للمدن الصغيرة والمناطق السياحية (Saidia, Martil...)
 
 # FIX #2: تصنيف الإيجار الشهري (مختلف كلياً عن تصنيف البيع)
-_PRIX_SEUILS_LOCATION = [
+_PRIX_SEUILS_LOCATION_MENSUEL = [
     (3_000,   "Très Bas"),
     (6_000,   "Bas"),
     (12_000,  "Moyen"),
     (25_000,  "Élevé"),
+    (float("inf"), "Luxe"),
+]
+
+# FIX #4: سلّم منفصل للإيجار اليومي — مختلف تماماً عن الشهري
+# 500 DH/ليلة ليس "Très Bas" — هو "Moyen" في سياق الإيجار اليومي
+_PRIX_SEUILS_LOCATION_JOURNALIER = [
+    (200,   "Très Bas"),
+    (400,   "Bas"),
+    (800,   "Moyen"),
+    (1_500, "Élevé"),
     (float("inf"), "Luxe"),
 ]
 
@@ -302,14 +309,15 @@ def _detect_daily_rental(prix: float | None, prix_type: str, ville: str) -> str:
 
 
 def _categorize_prix(prix, prix_type: str = "mensuel") -> str:
-    """✅ FIX: تصنيف منفصل للإيجار الشهري vs البيع."""
+    """FIX #4: سلّم منفصل لكل نوع إيجار: mensuel / journalier / vente."""
     if prix is None or (isinstance(prix, float) and np.isnan(prix)):
         return "Inconnu"
-    seuils = (
-        _PRIX_SEUILS_LOCATION
-        if prix_type in ("mensuel", "journalier")
-        else _PRIX_SEUILS_VENTE
-    )
+    if prix_type == "journalier":
+        seuils = _PRIX_SEUILS_LOCATION_JOURNALIER
+    elif prix_type in ("mensuel", "journalier_suspect"):
+        seuils = _PRIX_SEUILS_LOCATION_MENSUEL
+    else:
+        seuils = _PRIX_SEUILS_VENTE
     for seuil, label in seuils:
         if prix < seuil:
             return label
@@ -434,9 +442,6 @@ def _clean(df: pd.DataFrame) -> pd.DataFrame:
     df["surface_m2"]         = df["surface"].apply(_clean_surface)
     df["nb_chambres"]        = df["nb_chambres"].apply(_clean_int)
     df["nb_salles_bain"]     = df["nb_salles_bain"].apply(_clean_int)
-    df["annee_construction"] = df["annee_construction"].apply(
-        lambda v: _clean_int(v, max_val=datetime.now().year)
-    )
 
     df["ville"]    = df["ville"].apply(_standardize_ville)
     # ✅ FIX: quartier ذكي — يحذف القيم بلا معنى ويحترم حروف الجر
@@ -498,13 +503,23 @@ def _clean(df: pd.DataFrame) -> pd.DataFrame:
         np.nan,
     )
 
-    # ✅ FIX: صيغة age_bien الصحيحة — current_year - annee_construction
-    # ✅ FIX: لا نُلغي annee_construction بعد الحساب
-    df["age_bien"] = df["annee_construction"].apply(
-        lambda x: (current_year - int(x))
-                  if pd.notna(x) and 1900 <= int(x) <= current_year
-                  else None
+    # FIX #3: Log surface_m2 fill rate — prix_par_m2 is only as good as surface coverage.
+    n_total   = len(df)
+    n_surface = df["surface_m2"].notna().sum()
+    n_ppm2    = df["prix_par_m2"].notna().sum()
+    surface_pct = (n_surface / n_total * 100) if n_total else 0
+    ppm2_pct    = (n_ppm2    / n_total * 100) if n_total else 0
+    surface_status = "✅" if surface_pct >= 60 else ("⚠️" if surface_pct >= 30 else "❌")
+    logger.info(
+        f"FIX #3 — surface_m2 fill: {surface_status} {n_surface}/{n_total} ({surface_pct:.1f}%) "
+        f"→ prix_par_m2 computable for {n_ppm2}/{n_total} rows ({ppm2_pct:.1f}%)"
     )
+    if surface_pct < 30:
+        logger.warning(
+            "FIX #3 — surface_m2 fill rate is critically low (<30%). "
+            "prix_par_m2 will be unreliable for BI and ML. "
+            "Consider improving surface extraction in the scraper."
+        )
 
     # ✅ FIX: تصنيف منفصل للإيجار vs البيع
     df["categorie_prix"] = df.apply(
@@ -526,8 +541,8 @@ def _clean(df: pd.DataFrame) -> pd.DataFrame:
 def _ml_readiness_report(df: pd.DataFrame):
     feature_cols = [
         "prix", "prix_type", "surface_m2", "nb_chambres", "nb_salles_bain",
-        "etage", "annee_construction", "ville", "quartier",
-        "prix_par_m2", "age_bien", "categorie_prix",
+        "etage", "ville", "quartier",
+        "prix_par_m2", "categorie_prix",
         "region_label", "is_grande_ville",
     ]
     n = len(df)
@@ -562,8 +577,8 @@ def _load_to_db(df: pd.DataFrame):
 
     cols = [
         "titre", "prix", "prix_type", "ville", "quartier", "surface_m2",
-        "nb_chambres", "nb_salles_bain", "etage", "annee_construction",
-        "lien", "scraped_at", "prix_par_m2", "age_bien", "categorie_prix",
+        "nb_chambres", "nb_salles_bain", "etage",
+        "lien", "scraped_at", "prix_par_m2", "categorie_prix",
         "region_label", "is_grande_ville",
     ]
 
@@ -573,7 +588,7 @@ def _load_to_db(df: pd.DataFrame):
         return
 
     sub = df[cols].where(pd.notna(df[cols]), None)
-    INT_COLS = {'nb_chambres', 'nb_salles_bain', 'annee_construction', 'age_bien'}
+    INT_COLS = {'nb_chambres', 'nb_salles_bain'}
 
     def safe_row(row):
         result = []
