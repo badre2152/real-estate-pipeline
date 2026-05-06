@@ -34,11 +34,9 @@ _DDL_STATEMENTS = [
         nb_chambres         INTEGER,
         nb_salles_bain      INTEGER,
         etage               TEXT,
-        annee_construction  INTEGER,
 
         -- Engineered features
         prix_par_m2         NUMERIC,
-        age_bien            INTEGER,
         categorie_prix      TEXT,
         prix_type           TEXT DEFAULT 'mensuel',
 
@@ -61,7 +59,7 @@ _DDL_MIGRATIONS = []  # kept for reference only — see utils/migrations.py
 _INSERT = """
 INSERT INTO ml_schema.feature_store
     (prix, ville, quartier, surface_m2, nb_chambres, nb_salles_bain,
-     etage, annee_construction, prix_par_m2, age_bien, categorie_prix,
+     etage, prix_par_m2, categorie_prix,
      prix_type, titre, lien, scraped_at)
 VALUES %s
 ON CONFLICT (lien) DO NOTHING
@@ -69,14 +67,14 @@ ON CONFLICT (lien) DO NOTHING
 
 _COLS = [
     "prix", "ville", "quartier", "surface_m2", "nb_chambres",
-    "nb_salles_bain", "etage", "annee_construction", "prix_par_m2",
-    "age_bien", "categorie_prix", "prix_type", "titre", "lien", "scraped_at",
+    "nb_salles_bain", "etage", "prix_par_m2",
+    "categorie_prix", "prix_type", "titre", "lien", "scraped_at",
 ]
 
 INT_MIN = -2_147_483_648
 INT_MAX =  2_147_483_647
 
-_INT_COLS = ["nb_chambres", "nb_salles_bain", "annee_construction", "age_bien"]
+_INT_COLS = ["nb_chambres", "nb_salles_bain"]
 
 
 def _safe_int(val):
@@ -173,13 +171,21 @@ def _save_gold_ml(df: pd.DataFrame):
     """
     Export ML gold layer to data/gold/ml/.
     Exports:
-      - feature_store_TIMESTAMP.csv     → full flat feature table (all ML columns)
-      - feature_store_TIMESTAMP.parquet → same data in Parquet format (faster for ML libs)
+      - feature_store_TIMESTAMP.csv     → full flat feature table
+      - feature_store_TIMESTAMP.parquet → same data in Parquet format
+    FIX #5: Added empty-df guard and clear error logging.
     """
+    if df.empty:
+        logger.error(
+            "Gold ML: DataFrame is empty — nothing to export. "
+            "Check that run_clean() produced data before run_ml_schema()."
+        )
+        return
+
     os.makedirs(GOLD_ML_DIR, exist_ok=True)
     ts = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
 
-    csv_path = os.path.join(GOLD_ML_DIR, f"feature_store_{ts}.csv")
+    csv_path     = os.path.join(GOLD_ML_DIR, f"feature_store_{ts}.csv")
     parquet_path = os.path.join(GOLD_ML_DIR, f"feature_store_{ts}.parquet")
 
     try:
