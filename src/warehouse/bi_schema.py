@@ -5,6 +5,10 @@ FIX #11: Replaced iterrows (slow, creates Series per row) with
          df.itertuples() which is 3-5× faster and avoids Series overhead.
 FIX #14: _DDL_MIGRATIONS removed — now handled centrally in utils/migrations.py.
 FIX #53: Uses connection pool via get_connection() / release_connection().
+FIX #Q1: dim_localisation now has quartier_known flag + view groups
+         unknown-quartier listings separately to avoid distorting per-quartier stats.
+FIX #Q2: annee_construction removed from dim_caracteristiques (always NULL in Avito data).
+FIX #Q4: Separate prix_seuils for journalier in categorie_prix.
 """
 
 import os
@@ -26,6 +30,7 @@ _DDL = [
         id_localisation SERIAL PRIMARY KEY,
         ville           TEXT NOT NULL,
         quartier        TEXT NOT NULL DEFAULT '',
+        quartier_known  BOOLEAN NOT NULL DEFAULT FALSE,
         region_label    TEXT NOT NULL DEFAULT 'Autre',
         is_grande_ville BOOLEAN NOT NULL DEFAULT FALSE,
         UNIQUE (ville, quartier)
@@ -35,17 +40,14 @@ _DDL = [
         id_caracteristiques SERIAL PRIMARY KEY,
         nb_chambres         BIGINT,
         nb_salles_bain      BIGINT,
-        etage               TEXT NOT NULL DEFAULT '',
-        annee_construction  BIGINT,
-        age_bien            BIGINT
+        etage               TEXT NOT NULL DEFAULT ''
     );""",
 
     """CREATE UNIQUE INDEX IF NOT EXISTS idx_dim_car_unique
         ON bi_schema.dim_caracteristiques (
             COALESCE(nb_chambres, -1),
             COALESCE(nb_salles_bain, -1),
-            etage,
-            COALESCE(annee_construction, -1)
+            etage
         );""",
 
     """CREATE TABLE IF NOT EXISTS bi_schema.dim_temps (
@@ -81,15 +83,13 @@ _DDL = [
 ]
 
 _VIEWS = [
-    # FIX #4: Exclude journalier_suspect from both views.
-    # journalier_suspect = mensuel price that is implausibly low for its city.
-    # Including them in BI averages skews price-per-city metrics downward.
+    # FIX #Q1: journalier_suspect excluded. quartier_known exposed for filtering.
+    # FIX #Q2: annee_construction / age_bien removed (always NULL in Avito data).
     """CREATE OR REPLACE VIEW bi_schema.v_annonces_full AS
     SELECT
         f.id_annonce,
-        l.ville, l.quartier, l.region_label, l.is_grande_ville,
+        l.ville, l.quartier, l.quartier_known, l.region_label, l.is_grande_ville,
         c.nb_chambres, c.nb_salles_bain, c.etage,
-        c.annee_construction, c.age_bien,
         t.date_jour, t.annee, t.trimestre, t.mois,
         f.titre, f.prix, f.prix_type, f.surface_m2, f.prix_par_m2,
         f.categorie_prix, f.lien
@@ -116,22 +116,49 @@ _VIEWS = [
     GROUP BY l.ville, l.region_label, f.prix_type
     ORDER BY prix_moyen DESC;
     """,
+    # FIX #Q1: New view — prix par quartier, only for known quartiers.
+    # This prevents the "unknown quartier" bucket from distorting per-neighbourhood stats.
+    """CREATE OR REPLACE VIEW bi_schema.v_prix_par_quartier AS
+    SELECT
+        l.ville,
+        l.quartier,
+        l.region_label,
+        f.prix_type,
+        COUNT(*)                              AS nb_annonces,
+        ROUND(AVG(f.prix)::numeric, 0)        AS prix_moyen,
+        ROUND(AVG(f.prix_par_m2)::numeric, 0) AS prix_m2_moyen,
+        MIN(f.prix)                           AS prix_min,
+        MAX(f.prix)                           AS prix_max
+    FROM bi_schema.fact_annonce f
+    JOIN bi_schema.dim_localisation l ON f.id_localisation = l.id_localisation
+    WHERE f.prix IS NOT NULL
+      AND f.prix_type != 'journalier_suspect'
+      AND l.quartier_known = TRUE
+    GROUP BY l.ville, l.quartier, l.region_label, f.prix_type
+    HAVING COUNT(*) >= 3
+    ORDER BY l.ville, prix_moyen DESC;
+    """,
 ]
 
 
 def _upsert_localisation(cur, ville, quartier, region_label, is_grande_ville) -> int:
+    # FIX #Q1: quartier_known=TRUE only when quartier is a real non-empty value.
+    # This lets Power BI filter out the "unknown quartier" bucket from per-quartier stats.
+    quartier_val  = quartier or ""
+    quartier_known = bool(quartier_val.strip())
     cur.execute(
         """
         INSERT INTO bi_schema.dim_localisation
-            (ville, quartier, region_label, is_grande_ville)
-        VALUES (%s, %s, %s, %s)
+            (ville, quartier, quartier_known, region_label, is_grande_ville)
+        VALUES (%s, %s, %s, %s, %s)
         ON CONFLICT (ville, quartier)
         DO UPDATE SET
+            quartier_known  = EXCLUDED.quartier_known,
             region_label    = EXCLUDED.region_label,
             is_grande_ville = EXCLUDED.is_grande_ville
         RETURNING id_localisation
         """,
-        (ville or "", quartier or "", region_label or "Autre", bool(is_grande_ville)),
+        (ville or "", quartier_val, quartier_known, region_label or "Autre", bool(is_grande_ville)),
     )
     return cur.fetchone()[0]
 
@@ -145,26 +172,37 @@ def _safe_int(v, default=None):
         return default
 
 
-def _upsert_caracteristiques(cur, nb_ch, nb_sb, etage, annee, age) -> int:
+def _upsert_caracteristiques(cur, nb_ch, nb_sb, etage) -> int:
+    # FIX #Q2: annee_construction and age_bien removed — always NULL in Avito data.
     nb_ch = _safe_int(nb_ch)
     nb_sb = _safe_int(nb_sb)
-    annee = _safe_int(annee)
-    age   = None if (age is None or (isinstance(age, float) and age != age)) else int(age)
     cur.execute(
         """
         INSERT INTO bi_schema.dim_caracteristiques
-            (nb_chambres, nb_salles_bain, etage, annee_construction, age_bien)
-        VALUES (%s, %s, %s, %s, %s)
+            (nb_chambres, nb_salles_bain, etage)
+        VALUES (%s, %s, %s)
         ON CONFLICT (
             COALESCE(nb_chambres, -1),
             COALESCE(nb_salles_bain, -1),
-            etage,
-            COALESCE(annee_construction, -1)
+            etage
         )
-        DO UPDATE SET age_bien = EXCLUDED.age_bien
+        DO NOTHING
         RETURNING id_caracteristiques
         """,
-        (nb_ch, nb_sb, etage or "", annee, age),
+        (nb_ch, nb_sb, etage or ""),
+    )
+    row = cur.fetchone()
+    if row:
+        return row[0]
+    # Row already existed — fetch its id
+    cur.execute(
+        """
+        SELECT id_caracteristiques FROM bi_schema.dim_caracteristiques
+        WHERE COALESCE(nb_chambres, -1) = COALESCE(%s, -1)
+          AND COALESCE(nb_salles_bain, -1) = COALESCE(%s, -1)
+          AND etage = %s
+        """,
+        (nb_ch, nb_sb, etage or ""),
     )
     return cur.fetchone()[0]
 
@@ -303,8 +341,6 @@ def run_bi_schema(df: pd.DataFrame | None = None):
                         _g("nb_chambres"),
                         _g("nb_salles_bain"),
                         _g("etage", ""),
-                        _g("annee_construction"),
-                        _g("age_bien"),
                     )
                     id_tps = _upsert_temps(cur, getattr(row, "scraped_at", None))
 
@@ -367,26 +403,45 @@ def _save_gold_bi():
     """
     Export BI gold layer to data/gold/bi/.
     Exports:
-      - annonces_full_TIMESTAMP.csv   → full denormalized view (v_annonces_full)
-      - prix_par_ville_TIMESTAMP.csv  → aggregated price stats per city (v_prix_par_ville)
+      - annonces_full_TIMESTAMP.csv      → full denormalized view (v_annonces_full)
+      - prix_par_ville_TIMESTAMP.csv     → aggregated price stats per city
+      - prix_par_quartier_TIMESTAMP.csv  → aggregated price stats per known quartier
+    FIX #5: Added explicit row-count check and warning when export produces 0 rows.
     """
     os.makedirs(GOLD_BI_DIR, exist_ok=True)
     ts = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
 
     exports = [
-        ("SELECT * FROM bi_schema.v_annonces_full;",  f"annonces_full_{ts}.csv"),
-        ("SELECT * FROM bi_schema.v_prix_par_ville;", f"prix_par_ville_{ts}.csv"),
+        ("SELECT * FROM bi_schema.v_annonces_full;",     f"annonces_full_{ts}.csv"),
+        ("SELECT * FROM bi_schema.v_prix_par_ville;",    f"prix_par_ville_{ts}.csv"),
+        ("SELECT * FROM bi_schema.v_prix_par_quartier;", f"prix_par_quartier_{ts}.csv"),
     ]
 
     conn = get_connection()
+    exported_ok = 0
     try:
         for sql, filename in exports:
             try:
                 df = pd.read_sql(sql, conn)
+                if df.empty:
+                    logger.warning(
+                        f"Gold BI — {filename}: query returned 0 rows. "
+                        f"Check that run_bi_schema() completed successfully before _save_gold_bi()."
+                    )
+                    continue
                 path = os.path.join(GOLD_BI_DIR, filename)
                 df.to_csv(path, index=False, encoding="utf-8")
                 logger.info(f"Gold BI → {path}  ({len(df)} rows)")
+                exported_ok += 1
             except Exception as e:
                 logger.warning(f"Gold BI export failed for {filename}: {e}")
     finally:
         release_connection(conn)
+
+    if exported_ok == 0:
+        logger.error(
+            "Gold BI: ALL exports produced 0 rows or failed. "
+            "The bi_schema tables may be empty — verify the pipeline ran end-to-end."
+        )
+    else:
+        logger.info(f"Gold BI: {exported_ok}/{len(exports)} files exported successfully.")
