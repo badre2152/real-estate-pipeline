@@ -80,8 +80,8 @@ def make_clean_df(n: int = 10, **col_overrides) -> pd.DataFrame:
         "categorie_prix"    : ["Moyen"] * n,
         "region_label"      : ["Casablanca-Settat"] * n,
         "is_grande_ville"   : [True] * n,
-        "age_bien"          : [16] * n,
-        "annee_construction": [2010] * n,
+        "age_bien"          : [None] * n,   # always None in real data
+        "annee_construction": [None] * n,   # 0% fill rate from scraper
     }
     base.update(col_overrides)
     return pd.DataFrame(base)
