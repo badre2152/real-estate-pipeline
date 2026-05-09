@@ -5,7 +5,7 @@ Clean layer — reads from staging.raw_annonces, applies full cleaning
 
 import re
 import os
-from datetime import datetime
+from datetime import datetime, timezone
 
 import numpy as np
 import pandas as pd
@@ -13,6 +13,7 @@ import pandas as pd
 from src.utils.db import get_connection, release_connection, execute_query, bulk_insert
 from src.utils.logger import get_logger
 from src.clean.clean_validator import validate_pre_clean, validate_post_clean, CleanValidationError
+from src.config import GRANDES_VILLES as _GRANDES_VILLES, PRICE_CATEGORIES
 
 logger    = get_logger("clean")
 SILVER_DIR = os.path.join(os.path.dirname(__file__), "../../data/silver")
@@ -115,11 +116,6 @@ _VILLE_MAP = {
     "tamesna": "Tamesna",
     "zenata": "Zenata",
     "sidi bennour": "Sidi Bennour",
-}
-
-_GRANDES_VILLES = {
-    "Casablanca", "Rabat", "Marrakech", "Fès", "Tanger",
-    "Agadir", "Meknès", "Oujda", "Kénitra", "Tétouan",
 }
 
 _REGION_MAP = {
@@ -538,7 +534,7 @@ def _clean(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
-def _ml_readiness_report(df: pd.DataFrame):
+def _ml_readiness_report(df: pd.DataFrame) -> None:
     feature_cols = [
         "prix", "prix_type", "surface_m2", "nb_chambres", "nb_salles_bain",
         "etage", "ville", "quartier",
@@ -561,16 +557,38 @@ def _ml_readiness_report(df: pd.DataFrame):
     logger.info("\n".join(lines))
 
 
-def _save_silver(df: pd.DataFrame):
-    os.makedirs(SILVER_DIR, exist_ok=True)
-    ts   = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
-    path = os.path.join(SILVER_DIR, f"avito_clean_{ts}.csv")
-    # ✅ FIX: surface الخام محذوفة — لن تظهر في الـ CSV
-    df.to_csv(path, index=False, encoding="utf-8")
-    logger.info(f"Silver CSV saved → {path}")
+def _save_silver(df: pd.DataFrame) -> None:
+    """
+    Save silver data partitioned by date only:
+      data/silver/YYYY/MM/DD/avito_clean_<ts>.csv
+      data/silver/YYYY/MM/DD/avito_clean_<ts>.parquet
+    """
+    if df.empty:
+        logger.warning("Silver: DataFrame is empty — nothing to save.")
+        return
+
+    ts       = datetime.now(tz=timezone.utc).strftime("%Y%m%d_%H%M%S")
+    date_pfx = datetime.now(tz=timezone.utc).strftime("%Y/%m/%d")
+    part_dir = os.path.join(SILVER_DIR, date_pfx)
+    os.makedirs(part_dir, exist_ok=True)
+
+    stem = f"avito_clean_{ts}"
+
+    # CSV
+    csv_path = os.path.join(part_dir, f"{stem}.csv")
+    df.to_csv(csv_path, index=False, encoding="utf-8")
+    logger.info(f"Silver CSV     → {csv_path}  ({len(df)} rows)")
+
+    # Parquet
+    parquet_path = os.path.join(part_dir, f"{stem}.parquet")
+    try:
+        df.to_parquet(parquet_path, index=False, engine="pyarrow")
+        logger.info(f"Silver Parquet → {parquet_path}  ({len(df)} rows)")
+    except Exception as e:
+        logger.warning(f"Silver Parquet skipped: {e}")
 
 
-def _load_to_db(df: pd.DataFrame):
+def _load_to_db(df: pd.DataFrame) -> None:
     execute_query(_DDL_SCHEMA)
     execute_query(_DDL_TABLE)
     # FIX #14: Migrations removed — handled centrally by run_all_migrations() in pipeline.py.
@@ -590,7 +608,7 @@ def _load_to_db(df: pd.DataFrame):
     sub = df[cols].where(pd.notna(df[cols]), None)
     INT_COLS = {'nb_chambres', 'nb_salles_bain'}
 
-    def safe_row(row):
+    def safe_row(row: tuple) -> list:
         result = []
         for col, val in zip(cols, row):
             if col in INT_COLS and val is not None:
