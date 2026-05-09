@@ -1,0 +1,67 @@
+name: 🐛 Bug Report
+description: Report a bug or unexpected behavior in the pipeline
+title: "[Bug] "
+labels: [bug]
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a bug.
+        Please fill in as much detail as possible.
+
+  - type: dropdown
+    id: stage
+    attributes:
+      label: Pipeline stage
+      description: Which stage did the bug occur in?
+      options:
+        - Extract (scraper)
+        - Staging (load_staging / bronze_validator)
+        - Clean (clean_data / clean_validator)
+        - BI Schema (bi_schema)
+        - ML Schema (ml_schema)
+        - Great Expectations (gx_bronze / gx_silver)
+        - Migrations
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Bug description
+      description: What happened? What did you expect to happen?
+      placeholder: "e.g. pipeline crashed at clean stage with KeyError: 'surface_m2'"
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant log output
+      description: Paste the relevant lines from logs/pipeline.log or the stage-specific log.
+      render: text
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Fill in your environment details.
+      value: |
+        - OS:
+        - Python version:
+        - Docker version:
+        - Run method (make run / docker-compose / direct):
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Run `make run`
+        2. See error in logs/clean.log
+    validations:
+      required: true

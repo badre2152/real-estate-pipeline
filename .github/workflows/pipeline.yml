@@ -1,0 +1,65 @@
+name: Daily Pipeline Run
+
+on:
+  schedule:
+    - cron: "0 4 * * *"   # every day at 04:00 UTC
+  workflow_dispatch:        # allow manual trigger from GitHub UI
+
+jobs:
+  run-pipeline:
+    name: Run Avito Pipeline
+    runs-on: ubuntu-latest
+
+    env:
+      DB_HOST:     ${{ secrets.DB_HOST }}
+      DB_PORT:     ${{ secrets.DB_PORT }}
+      DB_NAME:     ${{ secrets.DB_NAME }}
+      DB_USER:     ${{ secrets.DB_USER }}
+      DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Chromium
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y chromium-browser chromium-chromedriver
+
+      - name: Install Python dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Create required directories
+        run: mkdir -p logs data/bronze data/silver data/gold/bi data/gold/ml
+
+      - name: Run pipeline
+        run: python -m src.pipeline
+
+      - name: Upload logs as artifact
+        uses: actions/upload-artifact@v4
+        if: always()          # upload even if pipeline fails
+        with:
+          name: pipeline-logs-${{ github.run_id }}
+          path: logs/
+          retention-days: 30
+
+      - name: Upload data artifacts
+        uses: actions/upload-artifact@v4
+        if: success()
+        with:
+          name: pipeline-data-${{ github.run_id }}
+          path: |
+            data/silver/
+            data/gold/
+          retention-days: 7
+
+      - name: Notify on failure
+        if: failure()
+        run: |
+          echo "::error::Pipeline failed on $(date -u). Check logs artifact for details."

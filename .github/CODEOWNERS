@@ -1,0 +1,27 @@
+# CODEOWNERS
+# GitHub automatically requests review from these owners on every PR.
+# Format: <path-pattern>  <owner>
+# Docs: https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+# ── Default owner for everything ─────────────────────────────────────────────
+*                           @badre2152
+
+# ── Pipeline stages ───────────────────────────────────────────────────────────
+src/extract/                @badre2152
+src/staging/                @badre2152
+src/clean/                  @badre2152
+src/warehouse/              @badre2152
+src/expectations/           @badre2152
+src/utils/                  @badre2152
+src/tests/                  @badre2152
+
+# ── Infrastructure ────────────────────────────────────────────────────────────
+Dockerfile                  @badre2152
+docker-compose.yml          @badre2152
+.github/                    @badre2152
+Makefile                    @badre2152
+requirements.txt            @badre2152
+
+# ── Documentation ─────────────────────────────────────────────────────────────
+*.md                        @badre2152
+docs/                       @badre2152

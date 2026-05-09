@@ -1,0 +1,30 @@
+version: 2
+
+updates:
+  # ── Python dependencies ───────────────────────────────────────────────────
+  - package-ecosystem: pip
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+      time: "07:00"
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+    ignore:
+      # Pin these — breaking changes risk
+      - dependency-name: "great-expectations"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "selenium"
+        update-types: ["version-update:semver-major"]
+
+  # ── GitHub Actions ────────────────────────────────────────────────────────
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+      time: "07:00"
+    labels:
+      - dependencies
+      - github-actions
