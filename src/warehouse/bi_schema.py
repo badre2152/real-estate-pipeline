@@ -369,8 +369,9 @@ def run_bi_schema(df: pd.DataFrame | None = None) -> None:
                         _g("nb_salles_bain"),
                         _g("etage", ""),
                     )
+                    scraped_at = getattr(row, "scraped_at", None)
                     id_tps = _upsert_temps(
-                        cur, getattr(row, "scraped_at", None))
+                        cur, scraped_at if scraped_at is not None else datetime.utcnow())
 
                     cur.execute(
                         """

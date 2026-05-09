@@ -239,9 +239,9 @@ def _scrape_listing(driver, url: str) -> dict:
                 record["annee_construction"] = value
 
         logger.debug(
-            f"Scraped: {record['titre'][:50]} | "
-            f"prix={record['prix']} | ville={record['ville']} | "
-            f"prix_type={record['prix_type']}"
+            f"Scraped: {str(record.get('titre', ''))[:50]} | "
+            f"prix={record.get('prix')} | ville={record.get('ville')} | "
+            f"prix_type={record.get('prix_type')}"
         )
 
     except TimeoutException:

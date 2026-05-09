@@ -55,7 +55,7 @@ _DDL_STATEMENTS = [
 
 # ✅ FIX: migration لإضافة prix_type إن لم يكن موجوداً
 # FIX #14: Migrations moved to src/utils/migrations.py
-_DDL_MIGRATIONS = []  # kept for reference only — see utils/migrations.py
+_DDL_MIGRATIONS: list[str] = []  # kept for reference only — see utils/migrations.py
 
 _INSERT = """
 INSERT INTO ml_schema.feature_store
@@ -147,12 +147,12 @@ def run_ml_schema(df: pd.DataFrame | None = None) -> None:
         if col in df.columns:
             df[col] = df[col].apply(_safe_int)
 
-    sub = df[_COLS].where(pd.notna(df[_COLS]), None)
+    sub = df[_COLS].where(pd.notna(df[_COLS]), other=float("nan"))
     rows = [tuple(r) for r in sub.itertuples(index=False, name=None)]
 
     safe_rows = []
     for row in rows:
-        safe_row = []
+        safe_row: list[Any] = []
         for i, val in enumerate(row):
             col = _COLS[i]
             if isinstance(val, (float,)) and val != val:  # NaN check
@@ -171,7 +171,7 @@ def run_ml_schema(df: pd.DataFrame | None = None) -> None:
     logger.info(
         f"=== ML Schema load finished — {len(safe_rows)} rows in feature_store ==="
     )
-    _save_gold_ml(df[_COLS].where(pd.notna(df[_COLS]), None))
+    _save_gold_ml(df[_COLS].where(pd.notna(df[_COLS]), other=float("nan")))
 
 
 def _save_gold_ml(df: pd.DataFrame) -> None:

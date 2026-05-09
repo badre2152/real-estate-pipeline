@@ -45,7 +45,7 @@ CREATE TABLE IF NOT EXISTS clean.annonces (
 """
 
 # FIX #14: Migrations moved to src/utils/migrations.py
-_DDL_MIGRATIONS = []  # kept for reference only
+_DDL_MIGRATIONS: list[str] = []  # kept for reference only
 
 _INSERT = """
 INSERT INTO clean.annonces
@@ -627,7 +627,7 @@ def _load_to_db(df: pd.DataFrame) -> None:
         logger.error(f"Missing columns in DataFrame: {missing}")
         return
 
-    sub = df[cols].where(pd.notna(df[cols]), None)
+    sub = df[cols].where(pd.notna(df[cols]), other=float("nan"))
     INT_COLS = {'nb_chambres', 'nb_salles_bain'}
 
     def safe_row(row: tuple) -> list:
@@ -641,7 +641,7 @@ def _load_to_db(df: pd.DataFrame) -> None:
                     result.append(None)
             else:
                 result.append(val)
-        return tuple(result)
+        return result
 
     rows = [safe_row(r) for r in sub.itertuples(index=False, name=None)]
     bulk_insert(_INSERT, rows)
