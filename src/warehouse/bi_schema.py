@@ -144,10 +144,16 @@ _VIEWS = [
 ]
 
 
-def _upsert_localisation(cur: psycopg2.extensions.cursor, ville: str, quartier: str | None, region_label: str, is_grande_ville: bool) -> int:
+def _upsert_localisation(
+        cur: psycopg2.extensions.cursor,
+        ville: str,
+        quartier: str | None,
+        region_label: str,
+        is_grande_ville: bool) -> int:
     # FIX #Q1: quartier_known=TRUE only when quartier is a real non-empty value.
-    # This lets Power BI filter out the "unknown quartier" bucket from per-quartier stats.
-    quartier_val  = quartier or ""
+    # This lets Power BI filter out the "unknown quartier" bucket from
+    # per-quartier stats.
+    quartier_val = quartier or ""
     quartier_known = bool(quartier_val.strip())
     cur.execute(
         """
@@ -161,7 +167,11 @@ def _upsert_localisation(cur: psycopg2.extensions.cursor, ville: str, quartier: 
             is_grande_ville = EXCLUDED.is_grande_ville
         RETURNING id_localisation
         """,
-        (ville or "", quartier_val, quartier_known, region_label or "Autre", bool(is_grande_ville)),
+        (ville or "",
+         quartier_val,
+         quartier_known,
+         region_label or "Autre",
+         bool(is_grande_ville)),
     )
     return cur.fetchone()[0]
 
@@ -175,8 +185,13 @@ def _safe_int(v: Any, default: Optional[int] = None) -> Optional[int]:
         return default
 
 
-def _upsert_caracteristiques(cur: psycopg2.extensions.cursor, nb_ch: int | None, nb_sb: int | None, etage: int | None) -> int:
-    # FIX #Q2: annee_construction and age_bien removed — always NULL in Avito data.
+def _upsert_caracteristiques(
+        cur: psycopg2.extensions.cursor,
+        nb_ch: int | None,
+        nb_sb: int | None,
+        etage: int | None) -> int:
+    # FIX #Q2: annee_construction and age_bien removed — always NULL in Avito
+    # data.
     nb_ch = _safe_int(nb_ch)
     nb_sb = _safe_int(nb_sb)
     cur.execute(
@@ -211,7 +226,10 @@ def _upsert_caracteristiques(cur: psycopg2.extensions.cursor, nb_ch: int | None,
 
 
 def _upsert_temps(cur: psycopg2.extensions.cursor, scraped_at: str) -> int:
-    if scraped_at is None or (isinstance(scraped_at, float) and np.isnan(scraped_at)):
+    if scraped_at is None or (
+        isinstance(
+            scraped_at,
+            float) and np.isnan(scraped_at)):
         d = datetime.utcnow().date()
     elif isinstance(scraped_at, datetime):
         d = scraped_at.date()
@@ -233,7 +251,8 @@ def _upsert_temps(cur: psycopg2.extensions.cursor, scraped_at: str) -> int:
     row = cur.fetchone()
     if row:
         return row[0]
-    cur.execute("SELECT id_temps FROM bi_schema.dim_temps WHERE date_jour = %s", (d,))
+    cur.execute(
+        "SELECT id_temps FROM bi_schema.dim_temps WHERE date_jour = %s", (d,))
     return cur.fetchone()[0]
 
 
@@ -250,7 +269,7 @@ def _validate(inserted_this_run: int) -> None:
 
     for dim, col in [("dim_localisation", "id_localisation"),
                      ("dim_caracteristiques", "id_caracteristiques")]:
-        rows = fetch_all(f"""
+        rows = fetch_all("""
             SELECT COUNT(*) FROM bi_schema.fact_annonce f
             WHERE f.{col} IS NOT NULL
               AND NOT EXISTS (
@@ -268,7 +287,8 @@ def _validate(inserted_this_run: int) -> None:
     if warnings == 0:
         logger.info("── Post-load BI validation PASSED ✅ ──")
     else:
-        logger.warning(f"── Post-load BI validation finished with {warnings} warning(s) ──")
+        logger.warning(
+            f"── Post-load BI validation finished with {warnings} warning(s) ──")
 
 
 def _fetch_clean() -> pd.DataFrame:
@@ -304,8 +324,8 @@ def run_bi_schema(df: pd.DataFrame | None = None) -> None:
         df = df.copy()
         df["prix_type"] = "mensuel"
 
-    conn    = get_connection()
-    count   = 0
+    conn = get_connection()
+    count = 0
     skipped = 0
 
     def _val(v: Any) -> Any:
@@ -314,7 +334,8 @@ def run_bi_schema(df: pd.DataFrame | None = None) -> None:
     # FIX #11: Use itertuples instead of iterrows.
     # iterrows() creates a full Series per row (slow + dtype coercion).
     # itertuples() yields a lightweight namedtuple — 3-5× faster.
-    # We access fields by attribute name; .get() replaced by getattr with default.
+    # We access fields by attribute name; .get() replaced by getattr with
+    # default.
     rows_iter = df.reset_index(drop=True).itertuples(index=True, name="Row")
 
     try:
@@ -327,7 +348,10 @@ def run_bi_schema(df: pd.DataFrame | None = None) -> None:
 
                 def _g(field, default=None):
                     v = getattr(row, field, default)
-                    return default if (v is None or (isinstance(v, float) and v != v)) else v
+                    return default if (
+                        v is None or (
+                            isinstance(
+                                v, float) and v != v)) else v
 
                 try:
                     cur.execute(f"SAVEPOINT {savepoint}")
@@ -345,7 +369,8 @@ def run_bi_schema(df: pd.DataFrame | None = None) -> None:
                         _g("nb_salles_bain"),
                         _g("etage", ""),
                     )
-                    id_tps = _upsert_temps(cur, getattr(row, "scraped_at", None))
+                    id_tps = _upsert_temps(
+                        cur, getattr(row, "scraped_at", None))
 
                     cur.execute(
                         """
@@ -375,7 +400,8 @@ def run_bi_schema(df: pd.DataFrame | None = None) -> None:
                     cur.execute(f"ROLLBACK TO SAVEPOINT {savepoint}")
                     cur.execute(f"RELEASE SAVEPOINT {savepoint}")
                     skipped += 1
-                    logger.warning(f"Row {i} skipped — rolled back cleanly: {e}")
+                    logger.warning(
+                        f"Row {i} skipped — rolled back cleanly: {e}")
 
             cur.close()
 
@@ -396,7 +422,8 @@ def run_bi_schema(df: pd.DataFrame | None = None) -> None:
     if views_ok == len(_VIEWS):
         logger.info("Power BI helper views created successfully.")
     else:
-        logger.warning(f"Only {views_ok}/{len(_VIEWS)} views created — check warnings above.")
+        logger.warning(
+            f"Only {views_ok}/{len(_VIEWS)} views created — check warnings above.")
 
     _validate(inserted_this_run=count)
     _save_gold_bi()
@@ -410,14 +437,14 @@ def _save_gold_bi() -> None:
       data/gold/bi/YYYY/MM/DD/prix_par_quartier_<ts>.csv + .parquet
     """
     from datetime import timezone
-    ts       = datetime.now(tz=timezone.utc).strftime("%Y%m%d_%H%M%S")
+    ts = datetime.now(tz=timezone.utc).strftime("%Y%m%d_%H%M%S")
     date_pfx = datetime.now(tz=timezone.utc).strftime("%Y/%m/%d")
     part_dir = os.path.join(GOLD_BI_DIR, date_pfx)
     os.makedirs(part_dir, exist_ok=True)
 
     exports = [
-        ("SELECT * FROM bi_schema.v_annonces_full;",     f"annonces_full_{ts}"),
-        ("SELECT * FROM bi_schema.v_prix_par_ville;",    f"prix_par_ville_{ts}"),
+        ("SELECT * FROM bi_schema.v_annonces_full;", f"annonces_full_{ts}"),
+        ("SELECT * FROM bi_schema.v_prix_par_ville;", f"prix_par_ville_{ts}"),
         ("SELECT * FROM bi_schema.v_prix_par_quartier;", f"prix_par_quartier_{ts}"),
     ]
 
@@ -440,7 +467,8 @@ def _save_gold_bi() -> None:
                 parquet_path = os.path.join(part_dir, f"{stem}.parquet")
                 try:
                     df.to_parquet(parquet_path, index=False, engine="pyarrow")
-                    logger.info(f"Gold BI Parquet → {parquet_path}  ({len(df)} rows)")
+                    logger.info(
+                        f"Gold BI Parquet → {parquet_path}  ({len(df)} rows)")
                 except Exception as e:
                     logger.warning(f"Gold BI Parquet skipped [{stem}]: {e}")
 
@@ -453,7 +481,7 @@ def _save_gold_bi() -> None:
     if exported_ok == 0:
         logger.error(
             "Gold BI: ALL exports produced 0 rows or failed. "
-            "The bi_schema tables may be empty — verify the pipeline ran end-to-end."
-        )
+            "The bi_schema tables may be empty — verify the pipeline ran end-to-end.")
     else:
-        logger.info(f"Gold BI: {exported_ok}/{len(exports)} exports saved successfully.")
+        logger.info(
+            f"Gold BI: {exported_ok}/{len(exports)} exports saved successfully.")

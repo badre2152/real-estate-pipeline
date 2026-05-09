@@ -36,7 +36,8 @@ def _get_pool() -> pg_pool.ThreadedConnectionPool:
                     user=os.getenv("DB_USER", "postgres"),
                     password=os.getenv("DB_PASSWORD"),
                 )
-                logger.info(f"Connection pool initialised (min={DB_POOL_MIN}, max={DB_POOL_MAX}).")
+                logger.info(
+                    f"Connection pool initialised (min={DB_POOL_MIN}, max={DB_POOL_MAX}).")
     return _pool
 
 
@@ -94,7 +95,8 @@ def bulk_insert(query: str, rows: list) -> None:
 
 
 def fetch_all(query: str, params=None) -> list:
-    # FIX #28: consistently use `with conn` (transaction context) like execute_query.
+    # FIX #28: consistently use `with conn` (transaction context) like
+    # execute_query.
     conn = get_connection()
     try:
         with conn:

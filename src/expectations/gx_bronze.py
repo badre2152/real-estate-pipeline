@@ -9,14 +9,11 @@ Fixed for great-expectations >= 0.18 (Fluent API).
 from __future__ import annotations
 
 import json
-import datetime
 from pathlib import Path
 
 from src.config import (
     GX_MIN_ROWS, GX_MAX_ROWS,
     GX_PRIX_MOSTLY, GX_VILLE_MOSTLY,
-    MIN_PRIX, MAX_PRIX, MIN_SURFACE, MAX_SURFACE,
-    AVITO_BASE_URL,
 )
 
 try:
@@ -26,16 +23,16 @@ except ImportError:
     GX_AVAILABLE = False
 
 
-# ── Paths ─────────────────────────────────────────────────────────────────────
+# ── Paths ───────────────────────────────────────────────────────────────
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
-GX_ROOT      = PROJECT_ROOT / "gx"
-SUITE_NAME   = "bronze_suite"
-DS_NAME      = "bronze_pandas_ds"
-ASSET_NAME   = "bronze_asset"
+GX_ROOT = PROJECT_ROOT / "gx"
+SUITE_NAME = "bronze_suite"
+DS_NAME = "bronze_pandas_ds"
+ASSET_NAME = "bronze_asset"
 
 
-# ── Context ───────────────────────────────────────────────────────────────────
+# ── Context ─────────────────────────────────────────────────────────────
 
 def _get_context():
     # Use ephemeral context — nothing is written to disk, so no "suite already
@@ -43,7 +40,7 @@ def _get_context():
     return gx.get_context(mode="ephemeral")
 
 
-# ── Suite builder (GX 0.18+ API) ──────────────────────────────────────────────
+# ── Suite builder (GX 0.18+ API) ────────────────────────────────────────
 
 def _build_bronze_suite(context) -> None:
     """Create or overwrite the bronze expectation suite using GX 0.18+ API."""
@@ -114,17 +111,19 @@ def _build_bronze_suite(context) -> None:
         expectation_suite=suite,
     )
 
-    # ── 1. Schema ──────────────────────────────────────────────────────────────
+    # ── 1. Schema ───────────────────────────────────────────────────────────
     for col in ["titre", "prix", "ville", "lien", "scraped_at"]:
         validator.expect_column_to_exist(col)
 
-    # ── 2. Completeness ────────────────────────────────────────────────────────
-    validator.expect_column_values_to_not_be_null("prix",      mostly=GX_PRIX_MOSTLY)
-    validator.expect_column_values_to_not_be_null("ville",     mostly=GX_VILLE_MOSTLY)
-    validator.expect_column_values_to_not_be_null("titre",     mostly=0.80)
-    validator.expect_column_values_to_not_be_null("scraped_at",mostly=1.0)
+    # ── 2. Completeness ─────────────────────────────────────────────────────
+    validator.expect_column_values_to_not_be_null(
+        "prix", mostly=GX_PRIX_MOSTLY)
+    validator.expect_column_values_to_not_be_null(
+        "ville", mostly=GX_VILLE_MOSTLY)
+    validator.expect_column_values_to_not_be_null("titre", mostly=0.80)
+    validator.expect_column_values_to_not_be_null("scraped_at", mostly=1.0)
 
-    # ── 3. Value validity ──────────────────────────────────────────────────────
+    # ── 3. Value validity ───────────────────────────────────────────────────
     validator.expect_column_values_to_be_in_set(
         "prix_type",
         value_set=["mensuel", "journalier", "inconnu"],
@@ -135,15 +134,18 @@ def _build_bronze_suite(context) -> None:
     # and GX raises errors when bounds don't match column types or when both are None.
     # Fill-rate checks above are sufficient for bronze layer validation.
 
-    # ── 4. Format ──────────────────────────────────────────────────────────────
-    validator.expect_column_values_to_match_regex("lien",       regex=r"^https://www\.avito\.ma/", mostly=0.95)
-    validator.expect_column_values_to_match_regex("scraped_at", regex=r"^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}", mostly=1.0)
+    # ── 4. Format ───────────────────────────────────────────────────────────
+    validator.expect_column_values_to_match_regex(
+        "lien", regex=r"^https://www\.avito\.ma/", mostly=0.95)
+    validator.expect_column_values_to_match_regex(
+        "scraped_at", regex=r"^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}", mostly=1.0)
 
-    # ── 5. Uniqueness ──────────────────────────────────────────────────────────
+    # ── 5. Uniqueness ───────────────────────────────────────────────────────
     validator.expect_column_values_to_be_unique("lien")
 
-    # ── 6. Table-level ─────────────────────────────────────────────────────────
-    validator.expect_table_row_count_to_be_between(min_value=GX_MIN_ROWS, max_value=GX_MAX_ROWS)
+    # ── 6. Table-level ──────────────────────────────────────────────────────
+    validator.expect_table_row_count_to_be_between(
+        min_value=GX_MIN_ROWS, max_value=GX_MAX_ROWS)
     validator.expect_table_columns_to_match_set(
         column_set=[
             "titre", "prix", "prix_type", "ville", "quartier",
@@ -154,14 +156,15 @@ def _build_bronze_suite(context) -> None:
     )
 
 
-# ── Checkpoint runner ─────────────────────────────────────────────────────────
+# ── Checkpoint runner ───────────────────────────────────────────────────
 
 def run_bronze_checkpoint(bronze_json_path: str) -> bool:
     """
     Load a bronze JSON file, run the GX bronze suite, return True if passed.
     """
     if not GX_AVAILABLE:
-        raise ImportError("great_expectations is not installed. Run: pip install great-expectations")
+        raise ImportError(
+            "great_expectations is not installed. Run: pip install great-expectations")
 
     import pandas as pd
 
@@ -173,7 +176,12 @@ def run_bronze_checkpoint(bronze_json_path: str) -> bool:
         records = json.load(f)
     df = pd.DataFrame(records)
 
-    for col in ["surface", "nb_chambres", "nb_salles_bain", "etage", "annee_construction"]:
+    for col in [
+        "surface",
+        "nb_chambres",
+        "nb_salles_bain",
+        "etage",
+            "annee_construction"]:
         if col in df.columns:
             df[col] = pd.to_numeric(df[col], errors="coerce")
 
@@ -198,7 +206,6 @@ def run_bronze_checkpoint(bronze_json_path: str) -> bool:
     except Exception:
         batch_def = asset.add_batch_definition_whole_dataframe("bronze_batch")
 
-    batch = batch_def.get_batch(batch_parameters={"dataframe": df})
     suite = context.suites.get(SUITE_NAME)
 
     vd_name = "bronze_validation_run"
@@ -210,13 +217,16 @@ def run_bronze_checkpoint(bronze_json_path: str) -> bool:
         gx.ValidationDefinition(name=vd_name, data=batch_def, suite=suite)
     )
 
-    raw_result: dict = dict(validation_def.run(batch_parameters={"dataframe": df}))
+    raw_result: dict = dict(
+        validation_def.run(
+            batch_parameters={
+                "dataframe": df}))
 
-    success:    bool = bool(raw_result.get("success", False))
-    stats:      dict = dict(raw_result.get("statistics", {}))
-    evaluated:  int  = int(stats.get("evaluated_expectations",  0))
-    successful: int  = int(stats.get("successful_expectations", 0))
-    failed:     int  = int(stats.get("unsuccessful_expectations", 0))
+    success: bool = bool(raw_result.get("success", False))
+    stats: dict = dict(raw_result.get("statistics", {}))
+    evaluated: int = int(stats.get("evaluated_expectations", 0))
+    successful: int = int(stats.get("successful_expectations", 0))
+    failed: int = int(stats.get("unsuccessful_expectations", 0))
 
     _print_summary(path.name, evaluated, successful, failed, success)
 

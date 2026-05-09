@@ -32,17 +32,6 @@ Coverage:
     - Real silver CSV smoke test
 """
 
-import sys
-import os
-import unittest
-
-import pandas as pd
-import numpy as np
-
-PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, PROJECT_ROOT)
-
-from tests.conftest import make_clean_df, make_staging_df
 from src.clean.clean_validator import (
     validate_pre_clean,
     validate_post_clean,
@@ -66,9 +55,15 @@ from src.clean.clean_validator import (
     _post_surface_positive,
     _post_nb_fields_range,
     HARD_MIN_STAGING_ROWS,
-    HARD_MIN_CLEAN_ROWS,
-    HARD_MAX_DROP_RATE,
 )
+from tests.conftest import make_clean_df, make_staging_df
+import sys
+import os
+import unittest
+
+
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, PROJECT_ROOT)
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -175,7 +170,8 @@ class TestPostMinRows(unittest.TestCase):
     def test_fails_when_drop_rate_too_high(self):
         """81% drop rate should fail (hard limit = 80%)."""
         with self.assertRaises(CleanValidationError):
-            _post_min_rows(make_clean_df(2), n_staging=20)  # 2/20 = 10% retained → 90% dropped
+            # 2/20 = 10% retained → 90% dropped
+            _post_min_rows(make_clean_df(2), n_staging=20)
 
     def test_passes_at_exactly_20_pct_retained(self):
         """20% retained = 80% dropped — exactly at hard limit, should pass."""
@@ -225,7 +221,8 @@ class TestPostNoRawSurfaceCol(unittest.TestCase):
         """If only 'surface' exists (no surface_m2), rule passes — different issue."""
         df = make_clean_df(5).drop(columns=["surface_m2"])
         df["surface"] = 80
-        _post_no_raw_surface_col(df)  # must not raise (different validation handles this)
+        # must not raise (different validation handles this)
+        _post_no_raw_surface_col(df)
 
 
 class TestPostPrixFill(unittest.TestCase):
@@ -328,12 +325,20 @@ class TestPostSoftRules(unittest.TestCase):
 
     def test_prix_par_m2_consistent(self):
         """prix / surface_m2 == prix_par_m2 should pass silently."""
-        df = make_clean_df(5, prix=[5000.0] * 5, surface_m2=[80.0] * 5, prix_par_m2=[62.5] * 5)
+        df = make_clean_df(
+            5,
+            prix=[5000.0] * 5,
+            surface_m2=[80.0] * 5,
+            prix_par_m2=[62.5] * 5)
         _post_prix_par_m2_consistency(df)   # must not raise
 
     def test_prix_par_m2_inconsistent_does_not_raise(self):
         """Soft rule — inconsistent values warn but don't raise."""
-        df = make_clean_df(5, prix=[5000.0] * 5, surface_m2=[80.0] * 5, prix_par_m2=[999.9] * 5)
+        df = make_clean_df(
+            5,
+            prix=[5000.0] * 5,
+            surface_m2=[80.0] * 5,
+            prix_par_m2=[999.9] * 5)
         _post_prix_par_m2_consistency(df)   # soft — must not raise
 
     def test_age_bien_valid(self):
@@ -358,7 +363,9 @@ class TestPostSoftRules(unittest.TestCase):
         _post_nb_fields_range(make_clean_df(5, nb_chambres=[1, 2, 3, 4, 5]))
 
     def test_nb_chambres_out_of_range_does_not_raise(self):
-        df = make_clean_df(5, nb_chambres=[50, 2, 2, 2, 2])   # 50 is out of range
+        df = make_clean_df(
+            5, nb_chambres=[
+                50, 2, 2, 2, 2])   # 50 is out of range
         _post_nb_fields_range(df)   # soft — must not raise
 
     def test_nb_salles_bain_in_range(self):
@@ -366,7 +373,12 @@ class TestPostSoftRules(unittest.TestCase):
 
     def test_missing_column_does_not_raise(self):
         """Soft rules should gracefully handle missing optional columns."""
-        df = make_clean_df(5).drop(columns=["age_bien", "surface_m2", "prix_par_m2"], errors="ignore")
+        df = make_clean_df(5).drop(
+            columns=[
+                "age_bien",
+                "surface_m2",
+                "prix_par_m2"],
+            errors="ignore")
         _post_age_bien_valid(df)
         _post_surface_positive(df)
         _post_prix_par_m2_consistency(df)
@@ -441,8 +453,12 @@ class TestValidatePostCleanIntegration(unittest.TestCase):
         """
         import glob
         silver_files = sorted(
-            glob.glob(os.path.join(PROJECT_ROOT, "data", "silver", "avito_clean_*.csv"))
-        )
+            glob.glob(
+                os.path.join(
+                    PROJECT_ROOT,
+                    "data",
+                    "silver",
+                    "avito_clean_*.csv")))
         if not silver_files:
             self.skipTest("No silver fixture file found")
 
@@ -451,8 +467,6 @@ class TestValidatePostCleanIntegration(unittest.TestCase):
         # No manual pre-cleaning — the silver file must already be clean.
         summary = validate_post_clean(df, n_staging=len(df))
         self.assertGreater(summary["clean_rows"], 0)
-
-
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -516,10 +530,14 @@ class TestDetectDailyRental(unittest.TestCase):
         for ville in grandes:
             # 999 DH = below threshold → suspect
             r = self.detect(999.0, 'mensuel', ville)
-            self.assertEqual(r, 'journalier_suspect', f'{ville} at 999 DH should be suspect')
+            self.assertEqual(
+                r,
+                'journalier_suspect',
+                f'{ville} at 999 DH should be suspect')
             # 1001 DH = above threshold → mensuel
             r = self.detect(1001.0, 'mensuel', ville)
-            self.assertEqual(r, 'mensuel', f'{ville} at 1001 DH should stay mensuel')
+            self.assertEqual(
+                r, 'mensuel', f'{ville} at 1001 DH should stay mensuel')
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -552,8 +570,9 @@ class TestSurfaceCap(unittest.TestCase):
         df = make_staging_df(5)
         df.loc[0, 'surface'] = '800'
         result = self._run_clean_on_df(df)
-        kept = result[result['surface_m2'] == 800.0]
-        # May be empty if all records are identical (deduplicated), so just assert no >800
+
+        # May be empty if all records are identical (deduplicated), so just
+        # assert no >800
         self.assertTrue(
             (result['surface_m2'].dropna() <= 800).all(),
             'surface_m2 > 800 found after cleaning'
@@ -569,9 +588,9 @@ class TestSurfaceCap(unittest.TestCase):
         '''Regression guard: ensure SURFACE_MAX_RESIDENTIAL has not been changed.'''
         from src.clean.clean_data import SURFACE_MAX_RESIDENTIAL
         self.assertEqual(
-            SURFACE_MAX_RESIDENTIAL, 800,
-            'SURFACE_MAX_RESIDENTIAL changed — update BI/ML thresholds accordingly'
-        )
+            SURFACE_MAX_RESIDENTIAL,
+            800,
+            'SURFACE_MAX_RESIDENTIAL changed — update BI/ML thresholds accordingly')
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -592,9 +611,10 @@ class TestEtageZeroNormalization(unittest.TestCase):
         '''etage = "0" must be converted to "Non précisé" after cleaning.'''
         df = make_staging_df(5, etage=['0', '1', '2', '3', '4'])
         result = self._run_clean_on_df(df)
-        self.assertNotIn('0', result['etage'].values,
-                         'etage "0" survived cleaning — should be "Non précisé"'
-                         )
+        self.assertNotIn(
+            '0',
+            result['etage'].values,
+            'etage "0" survived cleaning — should be "Non précisé"')
 
     def test_etage_zero_string_normalised(self):
         '''All rows with etage=0 should become Non précisé.'''
@@ -614,7 +634,8 @@ class TestEtageZeroNormalization(unittest.TestCase):
         df = make_staging_df(5, etage=['1', '2', '3', '5', 'RDC'])
         result = self._run_clean_on_df(df)
         valid_etages = set(result['etage'].values)
-        # None of the valid values should be stripped or converted to Non précisé
+        # None of the valid values should be stripped or converted to Non
+        # précisé
         self.assertIn('1', valid_etages)
 
     def test_etage_none_becomes_non_precise(self):

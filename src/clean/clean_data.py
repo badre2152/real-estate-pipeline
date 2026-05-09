@@ -13,12 +13,12 @@ import pandas as pd
 from src.utils.db import get_connection, release_connection, execute_query, bulk_insert
 from src.utils.logger import get_logger
 from src.clean.clean_validator import validate_pre_clean, validate_post_clean, CleanValidationError
-from src.config import GRANDES_VILLES as _GRANDES_VILLES, PRICE_CATEGORIES
+from src.config import GRANDES_VILLES as _GRANDES_VILLES
 
-logger    = get_logger("clean")
+logger = get_logger("clean")
 SILVER_DIR = os.path.join(os.path.dirname(__file__), "../../data/silver")
 
-# ── DDL ───────────────────────────────────────────────────────────────────────
+# ── DDL ─────────────────────────────────────────────────────────────────
 
 _DDL_SCHEMA = "CREATE SCHEMA IF NOT EXISTS clean;"
 
@@ -64,7 +64,7 @@ ON CONFLICT (lien) DO UPDATE SET
     loaded_at     = NOW()
 """
 
-# ── City / region reference ───────────────────────────────────────────────────
+# ── City / region reference ─────────────────────────────────────────────
 
 _VILLE_MAP = {
     "casablanca": "Casablanca", "casa": "Casablanca",
@@ -93,17 +93,18 @@ _VILLE_MAP = {
     "طنجة": "Tanger",
     "مراكش": "Marrakech",
     # FIX #32: Additional Arabic city names found in scraped data.
-    # These exist alongside French names — both must normalise to the same canonical form.
+    # These exist alongside French names — both must normalise to the same
+    # canonical form.
     "الدار البيضاء": "Casablanca",
-    "الرباط":        "Rabat",
-    "فاس":           "Fès",
-    "أكادير":        "Agadir",
-    "مكناس":         "Meknès",
-    "وجدة":          "Oujda",
-    "القنيطرة":      "Kénitra",
-    "تطوان":         "Tétouan",
-    "آسفي":          "Safi",
-    "المحمدية":      "Mohammedia",
+    "الرباط": "Rabat",
+    "فاس": "Fès",
+    "أكادير": "Agadir",
+    "مكناس": "Meknès",
+    "وجدة": "Oujda",
+    "القنيطرة": "Kénitra",
+    "تطوان": "Tétouan",
+    "آسفي": "Safi",
+    "المحمدية": "Mohammedia",
     "الدار البيضاء": "Casablanca",
     "الرباط": "Rabat",
     "فاس": "Fès",
@@ -121,32 +122,32 @@ _VILLE_MAP = {
 _REGION_MAP = {
     "Casablanca": "Casablanca-Settat",
     "Mohammedia": "Casablanca-Settat",
-    "Berrechid":  "Casablanca-Settat",
-    "Settat":     "Casablanca-Settat",
-    "El Jadida":  "Casablanca-Settat",
+    "Berrechid": "Casablanca-Settat",
+    "Settat": "Casablanca-Settat",
+    "El Jadida": "Casablanca-Settat",
     "Benslimane": "Casablanca-Settat",
-    "Zenata":     "Casablanca-Settat",
+    "Zenata": "Casablanca-Settat",
     "Sidi Bennour": "Casablanca-Settat",
-    "Rabat":      "Rabat-Salé-Kénitra",
-    "Salé":       "Rabat-Salé-Kénitra",
-    "Témara":     "Rabat-Salé-Kénitra",
-    "Kénitra":    "Rabat-Salé-Kénitra",
-    "Tamesna":    "Rabat-Salé-Kénitra",
-    "Marrakech":  "Marrakech-Safi",
-    "Safi":       "Marrakech-Safi",
-    "Fès":        "Fès-Meknès",
-    "Meknès":     "Fès-Meknès",
-    "Tanger":     "Tanger-Tétouan-Al Hoceïma",
-    "Tétouan":    "Tanger-Tétouan-Al Hoceïma",
-    "Martil":     "Tanger-Tétouan-Al Hoceïma",
-    "Nounous":    "Tanger-Tétouan-Al Hoceïma",
-    "Agadir":     "Souss-Massa",
-    "Oujda":      "L'Oriental",
-    "Nador":      "L'Oriental",
+    "Rabat": "Rabat-Salé-Kénitra",
+    "Salé": "Rabat-Salé-Kénitra",
+    "Témara": "Rabat-Salé-Kénitra",
+    "Kénitra": "Rabat-Salé-Kénitra",
+    "Tamesna": "Rabat-Salé-Kénitra",
+    "Marrakech": "Marrakech-Safi",
+    "Safi": "Marrakech-Safi",
+    "Fès": "Fès-Meknès",
+    "Meknès": "Fès-Meknès",
+    "Tanger": "Tanger-Tétouan-Al Hoceïma",
+    "Tétouan": "Tanger-Tétouan-Al Hoceïma",
+    "Martil": "Tanger-Tétouan-Al Hoceïma",
+    "Nounous": "Tanger-Tétouan-Al Hoceïma",
+    "Agadir": "Souss-Massa",
+    "Oujda": "L'Oriental",
+    "Nador": "L'Oriental",
     "Beni Mellal": "Béni Mellal-Khénifra",
-    "Khouribga":  "Béni Mellal-Khénifra",
-    "Dakhla":     "Dakhla-Oued Ed-Dahab",
-    "Laâyoune":   "Laâyoune-Sakia El Hamra",
+    "Khouribga": "Béni Mellal-Khénifra",
+    "Dakhla": "Dakhla-Oued Ed-Dahab",
+    "Laâyoune": "Laâyoune-Sakia El Hamra",
 }
 
 # ✅ FIX: قيم quartier بلا معنى تُحوَّل إلى سلسلة فارغة
@@ -165,7 +166,17 @@ _QUARTIER_NORMALIZE = {
 }
 
 # ✅ FIX: حروف جر فرنسية لا تُحوَّل لـ Title Case
-_FRENCH_PREPOSITIONS = {"de", "du", "la", "le", "les", "au", "aux", "en", "et", "sur"}
+_FRENCH_PREPOSITIONS = {
+    "de",
+    "du",
+    "la",
+    "le",
+    "les",
+    "au",
+    "aux",
+    "en",
+    "et",
+    "sur"}
 
 # FIX #2: حد أقصى للمساحة في سياق الإيجار السكني.
 # 800 م² هو سقف معقول — ما فوقه غالباً خطأ في الـ scraper أو إعلان تجاري.
@@ -174,37 +185,39 @@ SURFACE_MAX_RESIDENTIAL = 800  # م²
 # FIX #2: حد أدنى للسعر الشهري حسب نوع المدينة.
 # إذا كان السعر أقل من هذا الحد لمدينة كبيرة → على الأرجح إيجار يومي مصنّف خطأً.
 # المبدأ: إيجار أقل من 1,000 DH/شهر في Casablanca أو Rabat = مستحيل سوقياً.
-_PRIX_MENSUEL_MIN_GRANDE_VILLE = 1_000   # DH — للمدن الكبيرة (Casablanca, Rabat, Tanger...)
-_PRIX_MENSUEL_MIN_PETITE_VILLE =   400   # DH — للمدن الصغيرة والمناطق السياحية (Saidia, Martil...)
+# DH — للمدن الكبيرة (Casablanca, Rabat, Tanger...)
+_PRIX_MENSUEL_MIN_GRANDE_VILLE = 1_000
+# DH — للمدن الصغيرة والمناطق السياحية (Saidia, Martil...)
+_PRIX_MENSUEL_MIN_PETITE_VILLE = 400
 
 # FIX #2: تصنيف الإيجار الشهري (مختلف كلياً عن تصنيف البيع)
 _PRIX_SEUILS_LOCATION_MENSUEL = [
-    (3_000,   "Très Bas"),
-    (6_000,   "Bas"),
-    (12_000,  "Moyen"),
-    (25_000,  "Élevé"),
+    (3_000, "Très Bas"),
+    (6_000, "Bas"),
+    (12_000, "Moyen"),
+    (25_000, "Élevé"),
     (float("inf"), "Luxe"),
 ]
 
 # FIX #4: سلّم منفصل للإيجار اليومي — مختلف تماماً عن الشهري
 # 500 DH/ليلة ليس "Très Bas" — هو "Moyen" في سياق الإيجار اليومي
 _PRIX_SEUILS_LOCATION_JOURNALIER = [
-    (200,   "Très Bas"),
-    (400,   "Bas"),
-    (800,   "Moyen"),
+    (200, "Très Bas"),
+    (400, "Bas"),
+    (800, "Moyen"),
     (1_500, "Élevé"),
     (float("inf"), "Luxe"),
 ]
 
 _PRIX_SEUILS_VENTE = [
-    (300_000,   "Bas"),
-    (800_000,   "Moyen"),
+    (300_000, "Bas"),
+    (800_000, "Moyen"),
     (2_000_000, "Élevé"),
     (float("inf"), "Luxe"),
 ]
 
 
-# ── Parsing helpers ───────────────────────────────────────────────────────────
+# ── Parsing helpers ─────────────────────────────────────────────────────
 
 def _extract_number(text) -> float | None:
     if not isinstance(text, str):
@@ -222,8 +235,10 @@ def _extract_number(text) -> float | None:
 def _clean_prix(v) -> float | None:
     return _extract_number(str(v)) if pd.notna(v) else None
 
+
 def _clean_surface(v) -> float | None:
     return _extract_number(str(v)) if pd.notna(v) else None
+
 
 def _clean_int(v, max_val: int = 32767) -> int | None:
     n = _extract_number(str(v)) if pd.notna(v) else None
@@ -275,7 +290,10 @@ def _clean_quartier(v: str) -> str:
     return _smart_title(v)
 
 
-def _detect_daily_rental(prix: float | None, prix_type: str, ville: str) -> str:
+def _detect_daily_rental(
+        prix: float | None,
+        prix_type: str,
+        ville: str) -> str:
     """
     FIX #2: كشف الإيجارات اليومية المصنّفة خطأً كشهرية.
 
@@ -297,8 +315,7 @@ def _detect_daily_rental(prix: float | None, prix_type: str, ville: str) -> str:
     if prix < threshold:
         logger.warning(
             f"FIX #2 — Prix suspect détecté: {prix} DH/mois à {ville} "
-            f"(seuil min = {threshold} DH) → reclassifié comme 'journalier_suspect'."
-        )
+            f"(seuil min = {threshold} DH) → reclassifié comme 'journalier_suspect'.")
         return "journalier_suspect"
 
     return prix_type
@@ -320,7 +337,7 @@ def _categorize_prix(prix, prix_type: str = "mensuel") -> str:
     return "Luxe"
 
 
-# ── Pipeline ──────────────────────────────────────────────────────────────────
+# ── Pipeline ────────────────────────────────────────────────────────────
 
 def _fetch_staging(run_id: str | None = None) -> pd.DataFrame:
     """
@@ -340,7 +357,8 @@ def _fetch_staging(run_id: str | None = None) -> pd.DataFrame:
                 conn,
                 params={"run_id": run_id},
             )
-            logger.info(f"Fetched {len(df)} rows from staging (run_id={run_id}).")
+            logger.info(
+                f"Fetched {len(df)} rows from staging (run_id={run_id}).")
         else:
             df = pd.read_sql(
                 """
@@ -350,7 +368,8 @@ def _fetch_staging(run_id: str | None = None) -> pd.DataFrame:
                 """,
                 conn,
             )
-            logger.info(f"Fetched {len(df)} unique rows from staging (deduped by lien, no run_id filter).")
+            logger.info(
+                f"Fetched {len(df)} unique rows from staging (deduped by lien, no run_id filter).")
         return df
     finally:
         release_connection(conn)
@@ -362,7 +381,8 @@ def _apply_missing_value_strategy(df: pd.DataFrame) -> pd.DataFrame:
     # السعر 25 DH و499 DH هما أخطاء في الـ scraper، ليسا إيجارات حقيقية
     PRIX_MIN_THRESHOLD = 200
     df = df[df["prix"].notna() & (df["prix"] >= PRIX_MIN_THRESHOLD)]
-    logger.info(f"Missing-value strategy: dropped {n0 - len(df)} rows with null/zero/implausibly-low prix (< {PRIX_MIN_THRESHOLD} DH)")
+    logger.info(
+        f"Missing-value strategy: dropped {n0 - len(df)} rows with null/zero/implausibly-low prix (< {PRIX_MIN_THRESHOLD} DH)")  # noqa: E501
 
     # FIX #35: Filter out sale listings masquerading as rental data.
     # A monthly rental above 150,000 DH is implausible for residential property;
@@ -371,13 +391,14 @@ def _apply_missing_value_strategy(df: pd.DataFrame) -> pd.DataFrame:
     # We drop rows where prix_type='mensuel' but prix > RENTAL_MAX_DH.
     RENTAL_MAX_DH = 150_000
     if "prix_type" in df.columns:
-        sale_mask = (df["prix_type"] == "mensuel") & (df["prix"] > RENTAL_MAX_DH)
+        sale_mask = (
+            df["prix_type"] == "mensuel") & (
+            df["prix"] > RENTAL_MAX_DH)
         n_sale = sale_mask.sum()
         if n_sale:
             logger.warning(
                 f"Missing-value strategy: dropped {n_sale} rows with suspiciously high "
-                f"rental price (> {RENTAL_MAX_DH:,} DH) — likely sale listings mis-scraped as rental."
-            )
+                f"rental price (> {RENTAL_MAX_DH:,} DH) — likely sale listings mis-scraped as rental.")  # noqa: E501
             df = df[~sale_mask]
     n1 = len(df)
     _ARTEFACT_VILLES = {
@@ -389,9 +410,10 @@ def _apply_missing_value_strategy(df: pd.DataFrame) -> pd.DataFrame:
         (df["ville"].str.strip() != "") &
         (~df["ville"].str.strip().isin(_ARTEFACT_VILLES))
     ]
-    logger.info(f"Missing-value strategy: dropped {n1 - len(df)} rows with empty/artefact ville")
-    df["etage"]    = df["etage"].fillna("Non précisé").replace("", "Non précisé")
-    df["titre"]    = df["titre"].fillna("Sans titre").replace("", "Sans titre")
+    logger.info(
+        f"Missing-value strategy: dropped {n1 - len(df)} rows with empty/artefact ville")
+    df["etage"] = df["etage"].fillna("Non précisé").replace("", "Non précisé")
+    df["titre"] = df["titre"].fillna("Sans titre").replace("", "Sans titre")
     df["quartier"] = df["quartier"].fillna("")
     df["scraped_at"] = df["scraped_at"].fillna(pd.Timestamp.utcnow())
     # ✅ FIX: nb_salles_bain = 0 → None (معالَج في _clean_int لكن نضمن هنا)
@@ -402,14 +424,16 @@ def _apply_missing_value_strategy(df: pd.DataFrame) -> pd.DataFrame:
     logger.info(f"Missing-value strategy applied. Remaining rows: {len(df)}")
 
     # FIX #3: حذف السجلات بمساحة غير منطقية في سياق الإيجار السكني.
-    # 800 م² سقف معقول — ما فوقه غالباً خطأ في الـ scraper أو إعلان تجاري/صناعي.
+    # 800 م² سقف معقول — ما فوقه غالباً خطأ في الـ scraper أو إعلان
+    # تجاري/صناعي.
     if "surface_m2" in df.columns:
         n_before = len(df)
-        oversized = df["surface_m2"].notna() & (df["surface_m2"] > SURFACE_MAX_RESIDENTIAL)
+        oversized = df["surface_m2"].notna() & (
+            df["surface_m2"] > SURFACE_MAX_RESIDENTIAL)
         if oversized.sum():
             logger.warning(
                 f"FIX #3 — {oversized.sum()} سجل(ات) بمساحة > {SURFACE_MAX_RESIDENTIAL} م² "
-                f"تم وضع علامة عليها: "
+                "تم وضع علامة عليها: "
                 + ", ".join(
                     f"{r['surface_m2']}م² ({r['ville']})"
                     for _, r in df[oversized][["surface_m2", "ville"]].iterrows()
@@ -434,15 +458,15 @@ def _clean(df: pd.DataFrame) -> pd.DataFrame:
     df = df.drop_duplicates(subset=["lien"], keep="last")
     logger.info(f"Dedup: {n0} → {len(df)} rows ({n0 - len(df)} removed)")
 
-    df["prix"]               = df["prix"].apply(_clean_prix)
-    df["surface_m2"]         = df["surface"].apply(_clean_surface)
-    df["nb_chambres"]        = df["nb_chambres"].apply(_clean_int)
-    df["nb_salles_bain"]     = df["nb_salles_bain"].apply(_clean_int)
+    df["prix"] = df["prix"].apply(_clean_prix)
+    df["surface_m2"] = df["surface"].apply(_clean_surface)
+    df["nb_chambres"] = df["nb_chambres"].apply(_clean_int)
+    df["nb_salles_bain"] = df["nb_salles_bain"].apply(_clean_int)
 
-    df["ville"]    = df["ville"].apply(_standardize_ville)
+    df["ville"] = df["ville"].apply(_standardize_ville)
     # ✅ FIX: quartier ذكي — يحذف القيم بلا معنى ويحترم حروف الجر
     df["quartier"] = df["quartier"].fillna("").apply(_clean_quartier)
-    df["titre"]    = df["titre"].fillna("").str.strip()
+    df["titre"] = df["titre"].fillna("").str.strip()
     # FIX #4: etage = "0" → "Non précisé"
     # الـ scraper يستخرج "0" عندما لا يجد قيمة — ليس طابق أرضي حقيقي.
     # نعالجه هنا قبل _apply_missing_value_strategy حتى لا يمر كقيمة صحيحة.
@@ -462,16 +486,13 @@ def _clean(df: pd.DataFrame) -> pd.DataFrame:
 
     # FIX #2: كشف الإيجارات اليومية المصنّفة خطأً كشهرية — يجب أن يكون بعد
     # _clean_prix و_standardize_ville حتى تكون القيم الرقمية والمدن جاهزة.
-    df["prix_type"] = df.apply(
-        lambda row: _detect_daily_rental(row["prix"], row["prix_type"], row["ville"]),
-        axis=1,
-    )
+    df["prix_type"] = df.apply(lambda row: _detect_daily_rental(
+        row["prix"], row["prix_type"], row["ville"]), axis=1, )
     n_suspect = (df["prix_type"] == "journalier_suspect").sum()
     if n_suspect:
         logger.warning(
             f"FIX #2 — {n_suspect} سجل(ات) أُعيد تصنيفها كـ 'journalier_suspect' "
-            f"بسبب سعر شهري غير منطقي."
-        )
+            "بسبب سعر شهري غير منطقي.")
 
     df = _apply_missing_value_strategy(df)
 
@@ -482,16 +503,14 @@ def _clean(df: pd.DataFrame) -> pd.DataFrame:
             logger.warning(
                 f"Outlier filter [{col}] skipped — only {n_valid} non-null rows "
                 f"(minimum required: {MIN_ROWS_FOR_OUTLIER}). "
-                f"Collect more data before relying on quantile filtering."
-            )
+                "Collect more data before relying on quantile filtering.")
             continue
         q_lo = df[col].quantile(0.01)
         q_hi = df[col].quantile(0.99)
         n_before = len(df)
         df = df[df[col].isna() | ((df[col] >= q_lo) & (df[col] <= q_hi))]
-        logger.info(f"Outlier filter [{col}]: removed {n_before - len(df)} rows")
-
-    current_year = datetime.now().year
+        logger.info(
+            f"Outlier filter [{col}]: removed {n_before - len(df)} rows")
 
     df["prix_par_m2"] = np.where(
         df["surface_m2"].notna() & (df["surface_m2"] > 0) & df["prix"].notna(),
@@ -499,17 +518,18 @@ def _clean(df: pd.DataFrame) -> pd.DataFrame:
         np.nan,
     )
 
-    # FIX #3: Log surface_m2 fill rate — prix_par_m2 is only as good as surface coverage.
-    n_total   = len(df)
+    # FIX #3: Log surface_m2 fill rate — prix_par_m2 is only as good as
+    # surface coverage.
+    n_total = len(df)
     n_surface = df["surface_m2"].notna().sum()
-    n_ppm2    = df["prix_par_m2"].notna().sum()
+    n_ppm2 = df["prix_par_m2"].notna().sum()
     surface_pct = (n_surface / n_total * 100) if n_total else 0
-    ppm2_pct    = (n_ppm2    / n_total * 100) if n_total else 0
-    surface_status = "✅" if surface_pct >= 60 else ("⚠️" if surface_pct >= 30 else "❌")
+    ppm2_pct = (n_ppm2 / n_total * 100) if n_total else 0
+    surface_status = "✅" if surface_pct >= 60 else (
+        "⚠️" if surface_pct >= 30 else "❌")
     logger.info(
         f"FIX #3 — surface_m2 fill: {surface_status} {n_surface}/{n_total} ({surface_pct:.1f}%) "
-        f"→ prix_par_m2 computable for {n_ppm2}/{n_total} rows ({ppm2_pct:.1f}%)"
-    )
+        f"→ prix_par_m2 computable for {n_ppm2}/{n_total} rows ({ppm2_pct:.1f}%)")
     if surface_pct < 30:
         logger.warning(
             "FIX #3 — surface_m2 fill rate is critically low (<30%). "
@@ -519,11 +539,11 @@ def _clean(df: pd.DataFrame) -> pd.DataFrame:
 
     # ✅ FIX: تصنيف منفصل للإيجار vs البيع
     df["categorie_prix"] = df.apply(
-        lambda row: _categorize_prix(row["prix"], row.get("prix_type", "mensuel")),
-        axis=1,
-    )
+        lambda row: _categorize_prix(
+            row["prix"], row.get(
+                "prix_type", "mensuel")), axis=1, )
 
-    df["region_label"]    = df["ville"].map(_REGION_MAP).fillna("Autre")
+    df["region_label"] = df["ville"].map(_REGION_MAP).fillna("Autre")
     df["is_grande_ville"] = df["ville"].isin(_GRANDES_VILLES)
 
     # ✅ FIX: حذف عمود surface الخام من الـ DataFrame النهائي
@@ -551,9 +571,10 @@ def _ml_readiness_report(df: pd.DataFrame) -> None:
             lines.append(f"  ❓ {col:<22}: column not found")
             continue
         null_count = df[col].isna().sum()
-        fill_pct   = 100 * (n - null_count) // n
+        fill_pct = 100 * (n - null_count) // n
         status = "✅" if fill_pct >= 80 else ("⚠️" if fill_pct >= 40 else "❌")
-        lines.append(f"  {status} {col:<22}: {n - null_count}/{n} filled ({fill_pct}%)")
+        lines.append(
+            f"  {status} {col:<22}: {n - null_count}/{n} filled ({fill_pct}%)")
     logger.info("\n".join(lines))
 
 
@@ -567,7 +588,7 @@ def _save_silver(df: pd.DataFrame) -> None:
         logger.warning("Silver: DataFrame is empty — nothing to save.")
         return
 
-    ts       = datetime.now(tz=timezone.utc).strftime("%Y%m%d_%H%M%S")
+    ts = datetime.now(tz=timezone.utc).strftime("%Y%m%d_%H%M%S")
     date_pfx = datetime.now(tz=timezone.utc).strftime("%Y/%m/%d")
     part_dir = os.path.join(SILVER_DIR, date_pfx)
     os.makedirs(part_dir, exist_ok=True)
@@ -591,7 +612,8 @@ def _save_silver(df: pd.DataFrame) -> None:
 def _load_to_db(df: pd.DataFrame) -> None:
     execute_query(_DDL_SCHEMA)
     execute_query(_DDL_TABLE)
-    # FIX #14: Migrations removed — handled centrally by run_all_migrations() in pipeline.py.
+    # FIX #14: Migrations removed — handled centrally by run_all_migrations()
+    # in pipeline.py.
 
     cols = [
         "titre", "prix", "prix_type", "ville", "quartier", "surface_m2",
@@ -643,7 +665,7 @@ def run_clean(run_id: str | None = None) -> pd.DataFrame:
         raise
 
     n_staging = len(df_raw)
-    df_clean  = _clean(df_raw)
+    df_clean = _clean(df_raw)
 
     # ── Post-clean validation ────────────────────────────────────────────────
     # Runs after transformation — gates the DB write and silver export.

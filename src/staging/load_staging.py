@@ -91,7 +91,9 @@ def _qc_report(records: list[dict]) -> None:
 
     lines = [f"\n📋 STAGING QC REPORT — {n} records"]
     for field in _FIELDS:
-        filled = sum(1 for r in records if r.get(field) and str(r[field]).strip())
+        filled = sum(
+            1 for r in records if r.get(field) and str(
+                r[field]).strip())
         missing = n - filled
         pct = 100 * filled // n
         status = "✅" if pct >= 80 else ("⚠️" if pct >= 40 else "❌")
@@ -99,15 +101,18 @@ def _qc_report(records: list[dict]) -> None:
             f"  {status} {field:<22}: {filled}/{n} filled ({pct}%) — {missing} missing"
         )
 
-    daily   = sum(1 for r in records if r.get("prix_type") == "journalier")
+    daily = sum(1 for r in records if r.get("prix_type") == "journalier")
     monthly = sum(1 for r in records if r.get("prix_type") == "mensuel")
     unknown = n - daily - monthly
-    lines.append(f"\n  📅 Prix type: {monthly} mensuel | {daily} journalier | {unknown} inconnu")
+    lines.append(
+        f"\n  📅 Prix type: {monthly} mensuel | {daily} journalier | {unknown} inconnu")
 
     logger.info("\n".join(lines))
 
 
-def run_staging(records: list[dict] | None = None, run_id: str | None = None) -> str:
+def run_staging(
+        records: list[dict] | None = None,
+        run_id: str | None = None) -> str:
     """
     Load records into staging.raw_annonces.
 
@@ -138,7 +143,8 @@ def run_staging(records: list[dict] | None = None, run_id: str | None = None) ->
     try:
         execute_query(_DDL_ADD_RUN_ID)
     except Exception as e:
-        logger.debug(f"run_id column already present or migration skipped: {e}")
+        logger.debug(
+            f"run_id column already present or migration skipped: {e}")
 
     logger.info("staging.raw_annonces — schema/table ready.")
 
@@ -167,7 +173,8 @@ def run_staging(records: list[dict] | None = None, run_id: str | None = None) ->
     # PostgreSQL raises "ON CONFLICT DO UPDATE command cannot affect row a second time"
     # when the same lien appears more than once in a single INSERT batch.
     # The scraper returns 141+ duplicates (same listing seen on multiple pages).
-    # We keep only the first occurrence per lien — data is identical across duplicates.
+    # We keep only the first occurrence per lien — data is identical across
+    # duplicates.
     seen_liens: set = set()
     deduped_records = []
     for r in records:
@@ -181,7 +188,7 @@ def run_staging(records: list[dict] | None = None, run_id: str | None = None) ->
         deduped_records.append(r)
 
     n_before = len([r for r in records if r.get("error") is None])
-    n_after  = len(deduped_records)
+    n_after = len(deduped_records)
     if n_before != n_after:
         logger.info(
             f"Deduplication: {n_before - n_after} duplicate lien(s) removed "

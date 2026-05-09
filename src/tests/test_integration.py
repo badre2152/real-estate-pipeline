@@ -13,17 +13,15 @@ the integration test uses a lightweight approach:
 This tests the full clean logic end-to-end without requiring a live DB.
 """
 
+from src.clean.clean_validator import validate_post_clean, CleanValidationError
 import sys
 import os
 import unittest
 import pandas as pd
-import numpy as np
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, PROJECT_ROOT)
-
-from src.clean.clean_validator import validate_post_clean, CleanValidationError
 
 
 def _make_raw_staging_df(n: int = 25) -> pd.DataFrame:
@@ -47,7 +45,7 @@ def _make_raw_staging_df(n: int = 25) -> pd.DataFrame:
             "annee_construction": str(1990 + i % 30) if i % 3 != 0 else None,
             "lien": f"https://www.avito.ma/fr/annonce-{i+1:04d}",
             "scraped_at": "2026-05-01T10:00:00",
-            "loaded_at" : "2026-05-01T10:05:00",
+            "loaded_at": "2026-05-01T10:05:00",
         })
     return pd.DataFrame(rows)
 
@@ -64,7 +62,8 @@ class TestRunCleanIntegration(unittest.TestCase):
     @patch("src.clean.clean_data._load_to_db")
     @patch("src.clean.clean_data._save_silver")
     @patch("src.clean.clean_data._fetch_staging")
-    def test_run_clean_returns_dataframe(self, mock_fetch, mock_save, mock_load):
+    def test_run_clean_returns_dataframe(
+            self, mock_fetch, mock_save, mock_load):
         """run_clean() should return a non-empty DataFrame."""
         mock_fetch.return_value = self.raw_df
         mock_save.return_value = None
@@ -79,7 +78,8 @@ class TestRunCleanIntegration(unittest.TestCase):
     @patch("src.clean.clean_data._load_to_db")
     @patch("src.clean.clean_data._save_silver")
     @patch("src.clean.clean_data._fetch_staging")
-    def test_run_clean_passes_post_validation(self, mock_fetch, mock_save, mock_load):
+    def test_run_clean_passes_post_validation(
+            self, mock_fetch, mock_save, mock_load):
         """Output of run_clean() must pass all post-clean validators."""
         mock_fetch.return_value = self.raw_df
         mock_save.return_value = None
@@ -99,7 +99,8 @@ class TestRunCleanIntegration(unittest.TestCase):
     @patch("src.clean.clean_data._load_to_db")
     @patch("src.clean.clean_data._save_silver")
     @patch("src.clean.clean_data._fetch_staging")
-    def test_run_clean_required_columns_present(self, mock_fetch, mock_save, mock_load):
+    def test_run_clean_required_columns_present(
+            self, mock_fetch, mock_save, mock_load):
         """Output must contain all columns required by downstream warehouse layers."""
         mock_fetch.return_value = self.raw_df
         mock_save.return_value = None
@@ -120,7 +121,8 @@ class TestRunCleanIntegration(unittest.TestCase):
     @patch("src.clean.clean_data._load_to_db")
     @patch("src.clean.clean_data._save_silver")
     @patch("src.clean.clean_data._fetch_staging")
-    def test_run_clean_no_duplicate_liens(self, mock_fetch, mock_save, mock_load):
+    def test_run_clean_no_duplicate_liens(
+            self, mock_fetch, mock_save, mock_load):
         """Silver layer must not have duplicate lien values."""
         mock_fetch.return_value = self.raw_df
         mock_save.return_value = None
@@ -130,21 +132,27 @@ class TestRunCleanIntegration(unittest.TestCase):
         result = run_clean(run_id="test-run-001")
 
         duplicates = result["lien"].duplicated().sum()
-        self.assertEqual(duplicates, 0, f"Found {duplicates} duplicate liens in clean output")
+        self.assertEqual(
+            duplicates,
+            0,
+            f"Found {duplicates} duplicate liens in clean output")
 
     @patch("src.clean.clean_data._load_to_db")
     @patch("src.clean.clean_data._save_silver")
     @patch("src.clean.clean_data._fetch_staging")
-    def test_run_clean_sale_prices_filtered(self, mock_fetch, mock_save, mock_load):
+    def test_run_clean_sale_prices_filtered(
+            self, mock_fetch, mock_save, mock_load):
         """FIX #35: Listings with implausibly high rental price should be dropped."""
-        # Add a fake sale listing (1,287,000 DH monthly — impossible for rental)
+        # Add a fake sale listing (1,287,000 DH monthly — impossible for
+        # rental)
         df_with_sale = self.raw_df.copy()
         sale_row = df_with_sale.iloc[0].copy()
         sale_row["prix"] = "1287000"
         sale_row["prix_type"] = "mensuel"
         sale_row["surface"] = "99"
         sale_row["lien"] = "https://www.avito.ma/fr/sale-listing-999"
-        df_with_sale = pd.concat([df_with_sale, pd.DataFrame([sale_row])], ignore_index=True)
+        df_with_sale = pd.concat(
+            [df_with_sale, pd.DataFrame([sale_row])], ignore_index=True)
 
         mock_fetch.return_value = df_with_sale
         mock_save.return_value = None
@@ -163,7 +171,8 @@ class TestRunCleanIntegration(unittest.TestCase):
     @patch("src.clean.clean_data._load_to_db")
     @patch("src.clean.clean_data._save_silver")
     @patch("src.clean.clean_data._fetch_staging")
-    def test_run_clean_arabic_cities_normalised(self, mock_fetch, mock_save, mock_load):
+    def test_run_clean_arabic_cities_normalised(
+            self, mock_fetch, mock_save, mock_load):
         """FIX #32: Arabic city names must be normalised to French canonical form."""
         df_arabic = self.raw_df.copy()
         df_arabic.loc[0, "ville"] = "طنجة"
@@ -177,7 +186,8 @@ class TestRunCleanIntegration(unittest.TestCase):
         from src.clean.clean_data import run_clean
         result = run_clean(run_id="test-run-001")
 
-        arabic_remaining = result["ville"].str.contains(r"[\u0600-\u06FF]", na=False).sum()
+        arabic_remaining = result["ville"].str.contains(
+            r"[\u0600-\u06FF]", na=False).sum()
         self.assertEqual(
             arabic_remaining, 0,
             f"Arabic city names were not normalised — {arabic_remaining} rows still contain Arabic."
@@ -186,7 +196,8 @@ class TestRunCleanIntegration(unittest.TestCase):
     @patch("src.clean.clean_data._load_to_db")
     @patch("src.clean.clean_data._save_silver")
     @patch("src.clean.clean_data._fetch_staging")
-    def test_run_clean_run_id_isolation(self, mock_fetch, mock_save, mock_load):
+    def test_run_clean_run_id_isolation(
+            self, mock_fetch, mock_save, mock_load):
         """FIX #15: run_id must be passed to _fetch_staging for run isolation."""
         mock_fetch.return_value = self.raw_df
         mock_save.return_value = None
@@ -222,8 +233,10 @@ class TestStagingRunIdLogic(unittest.TestCase):
             }
         ]
 
-        with patch("src.staging.load_staging.execute_query"),              patch("src.staging.load_staging.bulk_insert"),              patch("src.staging.load_staging.validate_bronze"):
-            result_id = run_staging(records=sample_records, run_id="explicit-run-id")
+        with patch("src.staging.load_staging.execute_query"), patch("src.staging.load_staging.bulk_insert"), patch("src.staging.load_staging.validate_bronze"):
+            result_id = run_staging(
+                records=sample_records,
+                run_id="explicit-run-id")
 
         self.assertEqual(result_id, "explicit-run-id")
 
@@ -233,14 +246,15 @@ class TestStagingRunIdLogic(unittest.TestCase):
         from src.staging.load_staging import run_staging
         from unittest.mock import patch
 
-        with patch("src.staging.load_staging.execute_query"),              patch("src.staging.load_staging.bulk_insert"),              patch("src.staging.load_staging.validate_bronze"):
+        with patch("src.staging.load_staging.execute_query"), patch("src.staging.load_staging.bulk_insert"), patch("src.staging.load_staging.validate_bronze"):
             result_id = run_staging(records=[], run_id=None)
 
         # Must be a valid UUID
         try:
             uuid.UUID(result_id)
         except ValueError:
-            self.fail(f"Auto-generated run_id is not a valid UUID: {result_id!r}")
+            self.fail(
+                f"Auto-generated run_id is not a valid UUID: {result_id!r}")
 
 
 if __name__ == "__main__":

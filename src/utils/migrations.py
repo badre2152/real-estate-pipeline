@@ -261,14 +261,16 @@ def run_all_migrations() -> None:
     """Apply all pending migrations in order. Each migration runs at most once."""
     execute_query(_DDL_TRACKING)
 
-    applied = {row[0] for row in fetch_all("SELECT name FROM public.schema_migrations;")}
+    applied = {row[0] for row in fetch_all(
+        "SELECT name FROM public.schema_migrations;")}
     pending = [(name, sql) for name, sql in MIGRATIONS if name not in applied]
 
     if not pending:
         logger.info("Migrations: all up-to-date, nothing to run.")
         return
 
-    logger.info(f"Migrations: {len(pending)} pending out of {len(MIGRATIONS)} total.")
+    logger.info(
+        f"Migrations: {len(pending)} pending out of {len(MIGRATIONS)} total.")
     for name, sql in pending:
         try:
             execute_query(sql)

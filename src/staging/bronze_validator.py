@@ -18,7 +18,6 @@ from __future__ import annotations
 
 import re
 from datetime import datetime, timezone
-from urllib.parse import urlparse
 
 from src.utils.logger import get_logger
 from src.config import (
@@ -31,20 +30,20 @@ from src.config import (
 logger = get_logger("bronze_validator")
 
 
-# ── Custom exception ──────────────────────────────────────────────────────────
+# ── Custom exception ────────────────────────────────────────────────────
 
 class BronzeValidationError(Exception):
     """Raised when a hard validation rule fails. Stops the pipeline."""
 
 
-# ── Thresholds ────────────────────────────────────────────────────────────────
+# ── Thresholds ──────────────────────────────────────────────────────────
 
-SOFT_MIN_FILL_PCT       = 0.40       # warn if field fill-rate below 40%
+SOFT_MIN_FILL_PCT = 0.40       # warn if field fill-rate below 40%
 
-VALID_PRIX_TYPES        = {"mensuel", "journalier", "journalier_suspect", "inconnu"}
+VALID_PRIX_TYPES = {"mensuel", "journalier", "journalier_suspect", "inconnu"}
 
 # Cities that are known scraper artefacts — never valid ville values
-ARTEFACT_VILLES         = {
+ARTEFACT_VILLES = {
     "COURS ET FORMATIONS",
     "Cours Et Formations",
     "cours et formations",
@@ -62,7 +61,7 @@ _SCRAPED_AT_PATTERN = re.compile(
 )
 
 
-# ── Individual rule functions ─────────────────────────────────────────────────
+# ── Individual rule functions ───────────────────────────────────────────
 
 def _rule_min_records(records: list[dict]) -> None:
     """HARD: pipeline is useless with fewer than HARD_MIN_RECORDS records."""
@@ -99,11 +98,11 @@ def _rule_no_error_field(records: list[dict]) -> None:
     if error_records:
         logger.warning(
             f"  ⚠️  {len(error_records)} record(s) have error field set "
-            f"(will be skipped at insert). Errors: "
+            "(will be skipped at insert). Errors: "
             + ", ".join(str(r['error']) for r in error_records[:3])
         )
     else:
-        logger.info(f"  ✅ no error records")
+        logger.info("  ✅ no error records")
 
 
 def _rule_prix_fill_rate(records: list[dict]) -> None:
@@ -114,7 +113,7 @@ def _rule_prix_fill_rate(records: list[dict]) -> None:
         raise BronzeValidationError(
             f"prix fill rate is {pct:.0%} — below hard minimum of "
             f"{HARD_MIN_PRIX_FILL_PCT:.0%}. "
-            f"Scraper may have failed to extract prices."
+            "Scraper may have failed to extract prices."
         )
     logger.info(f"  ✅ prix fill rate: {pct:.0%} ({len(valid)}/{len(records)})")
 
@@ -122,18 +121,18 @@ def _rule_prix_fill_rate(records: list[dict]) -> None:
 def _rule_ville_fill_rate(records: list[dict]) -> None:
     """HARD: if most records have no ville, location data is unusable."""
     valid = [
-        r for r in records
-        if r.get("ville")
-        and str(r["ville"]).strip()
-        and str(r["ville"]).strip().upper() not in {v.upper() for v in ARTEFACT_VILLES}
-    ]
+        r for r in records if r.get("ville") and str(
+            r["ville"]).strip() and str(
+            r["ville"]).strip().upper() not in {
+                v.upper() for v in ARTEFACT_VILLES}]
     pct = len(valid) / len(records)
     if pct < HARD_MIN_VILLE_FILL_PCT:
         raise BronzeValidationError(
             f"ville fill rate (excluding artefacts) is {pct:.0%} — "
             f"below hard minimum of {HARD_MIN_VILLE_FILL_PCT:.0%}."
         )
-    logger.info(f"  ✅ ville fill rate: {pct:.0%} ({len(valid)}/{len(records)})")
+    logger.info(
+        f"  ✅ ville fill rate: {pct:.0%} ({len(valid)}/{len(records)})")
 
 
 def _rule_prix_format(records: list[dict]) -> None:
@@ -151,7 +150,7 @@ def _rule_prix_format(records: list[dict]) -> None:
             f"Examples: {examples}"
         )
     else:
-        logger.info(f"  ✅ prix format valid on all non-empty records")
+        logger.info("  ✅ prix format valid on all non-empty records")
 
 
 def _rule_prix_type_values(records: list[dict]) -> None:
@@ -167,7 +166,7 @@ def _rule_prix_type_values(records: list[dict]) -> None:
             f"Examples: {invalid[:3]}"
         )
     else:
-        logger.info(f"  ✅ prix_type values all valid")
+        logger.info("  ✅ prix_type values all valid")
 
 
 def _rule_lien_format(records: list[dict]) -> None:
@@ -187,7 +186,7 @@ def _rule_lien_format(records: list[dict]) -> None:
             f"Examples: {bad[:3]}"
         )
     else:
-        logger.info(f"  ✅ all liens are valid avito.ma URLs")
+        logger.info("  ✅ all liens are valid avito.ma URLs")
 
 
 def _rule_lien_uniqueness(records: list[dict]) -> None:
@@ -195,14 +194,13 @@ def _rule_lien_uniqueness(records: list[dict]) -> None:
     from collections import Counter
     liens = [r.get("lien") for r in records if r.get("lien")]
     counts = Counter(liens)
-    duplicates = {l for l, c in counts.items() if c > 1}
+    duplicates = {label for label, count in counts.items() if count > 1}
     if duplicates:
         logger.warning(
             f"  ⚠️  {len(duplicates)} duplicate lien(s) found within bronze file. "
-            f"Examples: {list(duplicates)[:2]}"
-        )
+            f"Examples: {list(duplicates)[:2]}")
     else:
-        logger.info(f"  ✅ all liens unique within this bronze file")
+        logger.info("  ✅ all liens unique within this bronze file")
 
 
 def _rule_scraped_at_format(records: list[dict]) -> None:
@@ -231,7 +229,7 @@ def _rule_scraped_at_format(records: list[dict]) -> None:
             f"Examples: {bad[:3]}"
         )
     else:
-        logger.info(f"  ✅ scraped_at format valid on all records")
+        logger.info("  ✅ scraped_at format valid on all records")
 
 
 def _rule_artefact_villes(records: list[dict]) -> None:
@@ -244,11 +242,10 @@ def _rule_artefact_villes(records: list[dict]) -> None:
     if artefacts:
         logger.warning(
             f"  ⚠️  {len(artefacts)} record(s) have artefact ville values "
-            f"(e.g. 'COURS ET FORMATIONS'). They will be filtered at clean step. "
-            f"Indices: {[i for i, _ in artefacts]}"
-        )
+            "(e.g. 'COURS ET FORMATIONS'). They will be filtered at clean step. "
+            f"Indices: {[i for i, _ in artefacts]}")
     else:
-        logger.info(f"  ✅ no artefact ville values found")
+        logger.info("  ✅ no artefact ville values found")
 
 
 def _rule_soft_field_fill_rates(records: list[dict]) -> None:
@@ -260,7 +257,9 @@ def _rule_soft_field_fill_rates(records: list[dict]) -> None:
     n = len(records)
     lines = []
     for field in SECONDARY_FIELDS:
-        filled = sum(1 for r in records if r.get(field) and str(r[field]).strip())
+        filled = sum(
+            1 for r in records if r.get(field) and str(
+                r[field]).strip())
         pct = filled / n
         status = "✅" if pct >= SOFT_MIN_FILL_PCT else "⚠️"
         lines.append(f"    {status} {field:<22}: {filled}/{n} ({pct:.0%})")
@@ -268,7 +267,7 @@ def _rule_soft_field_fill_rates(records: list[dict]) -> None:
     logger.info("  Secondary field fill rates:\n" + "\n".join(lines))
 
 
-# ── Public entry point ────────────────────────────────────────────────────────
+# ── Public entry point ──────────────────────────────────────────────────
 
 def validate_bronze(records: list[dict]) -> dict:
     """
@@ -282,13 +281,13 @@ def validate_bronze(records: list[dict]) -> dict:
     logger.info("=" * 50)
 
     warnings_count = 0
-    hard_failures  = 0
+    hard_failures = 0
 
-    # ── HARD rules — any failure aborts the pipeline ──────────────────────────
+    # ── HARD rules — any failure aborts the pipeline ────────────────────────
     hard_rules = [
-        ("min_records"    , _rule_min_records),
-        ("required_keys"  , _rule_required_keys),
-        ("prix_fill_rate" , _rule_prix_fill_rate),
+        ("min_records", _rule_min_records),
+        ("required_keys", _rule_required_keys),
+        ("prix_fill_rate", _rule_prix_fill_rate),
         ("ville_fill_rate", _rule_ville_fill_rate),
     ]
 
@@ -304,16 +303,16 @@ def validate_bronze(records: list[dict]) -> dict:
                 f"Unexpected error in hard rule '{rule_name}': {e}"
             ) from e
 
-    # ── SOFT rules — failures are logged as warnings only ─────────────────────
+    # ── SOFT rules — failures are logged as warnings only ───────────────────
     soft_rules = [
-        ("no_error_field"      , _rule_no_error_field),
-        ("prix_format"         , _rule_prix_format),
-        ("prix_type_values"    , _rule_prix_type_values),
-        ("lien_format"         , _rule_lien_format),
-        ("lien_uniqueness"     , _rule_lien_uniqueness),
-        ("scraped_at_format"   , _rule_scraped_at_format),
-        ("artefact_villes"     , _rule_artefact_villes),
-        ("soft_fill_rates"     , _rule_soft_field_fill_rates),
+        ("no_error_field", _rule_no_error_field),
+        ("prix_format", _rule_prix_format),
+        ("prix_type_values", _rule_prix_type_values),
+        ("lien_format", _rule_lien_format),
+        ("lien_uniqueness", _rule_lien_uniqueness),
+        ("scraped_at_format", _rule_scraped_at_format),
+        ("artefact_villes", _rule_artefact_villes),
+        ("soft_fill_rates", _rule_soft_field_fill_rates),
     ]
 
     for rule_name, rule_fn in soft_rules:
@@ -323,26 +322,25 @@ def validate_bronze(records: list[dict]) -> dict:
             warnings_count += 1
             logger.warning(f"  ⚠️  soft rule '{rule_name}' raised: {e}")
 
-    # ── Summary ───────────────────────────────────────────────────────────────
+    # ── Summary ─────────────────────────────────────────────────────────────
     n_valid = sum(1 for r in records if not r.get("error"))
     summary = {
-        "total_records"  : len(records),
-        "valid_records"  : n_valid,
-        "error_records"  : len(records) - n_valid,
-        "hard_failures"  : hard_failures,
-        "soft_warnings"  : warnings_count,
+        "total_records": len(records),
+        "valid_records": n_valid,
+        "error_records": len(records) - n_valid,
+        "hard_failures": hard_failures,
+        "soft_warnings": warnings_count,
     }
 
     logger.info(
-        f"\n  VALIDATION SUMMARY\n"
-        f"  ─────────────────────────────\n"
+        "\n  VALIDATION SUMMARY\n"
+        "  ─────────────────────────────\n"
         f"  Total records  : {summary['total_records']}\n"
         f"  Valid records  : {summary['valid_records']}\n"
         f"  Error records  : {summary['error_records']}\n"
         f"  Hard failures  : {summary['hard_failures']}\n"
         f"  Soft warnings  : {summary['soft_warnings']}\n"
         f"  STATUS         : {'✅ PASSED' if hard_failures == 0 else '❌ FAILED'}\n"
-        f"  {'=' * 48}"
-    )
+        f"  {'=' * 48}")
 
     return summary

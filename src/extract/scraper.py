@@ -21,7 +21,7 @@ from selenium.common.exceptions import (
 
 from src.utils.logger import get_logger
 from src.config import (
-    AVITO_RENT_URL  as BASE_URL,
+    AVITO_RENT_URL as BASE_URL,
     MAX_PAGES,
     DELAY_MIN,
     DELAY_MAX,
@@ -63,7 +63,7 @@ DAILY_RENTAL_KEYWORDS = [
 ]
 
 
-# ── Driver ────────────────────────────────────────────────────────────────────
+# ── Driver ──────────────────────────────────────────────────────────────
 
 def _build_driver() -> webdriver.Chrome:
     options = Options()
@@ -96,7 +96,7 @@ def _build_driver() -> webdriver.Chrome:
     return driver
 
 
-# ── Helpers ───────────────────────────────────────────────────────────────────
+# ── Helpers ─────────────────────────────────────────────────────────────
 
 def _safe_text(driver, css: str, default: str = "") -> str:
     try:
@@ -109,9 +109,10 @@ def _get_listing_urls(driver, page_url: str) -> list[str]:
     urls = []
     try:
         driver.get(page_url)
-        WebDriverWait(driver, 15).until(
-            EC.presence_of_element_located((By.CSS_SELECTOR, "a[href$='.htm']"))
-        )
+        WebDriverWait(
+            driver, 15).until(
+            EC.presence_of_element_located(
+                (By.CSS_SELECTOR, "a[href$='.htm']")))
         seen = set()
         for a in driver.find_elements(By.CSS_SELECTOR, "a[href$='.htm']"):
             try:
@@ -119,13 +120,15 @@ def _get_listing_urls(driver, page_url: str) -> list[str]:
             except StaleElementReferenceException:
                 continue
             if href and href not in seen:
-                # Both conditions must be true: valid property type AND rental signal
+                # Both conditions must be true: valid property type AND rental
+                # signal
                 is_rental_type = any(kw in href for kw in IMMOBILIER_KEYWORDS)
                 is_louer = "louer" in href or "%C3%A0_louer" in href or "location" in href
                 if is_rental_type and is_louer:
                     seen.add(href)
                     urls.append(href)
-        logger.info(f"Page {page_url} → {len(urls)} annonces à louer trouvées.")
+        logger.info(
+            f"Page {page_url} → {len(urls)} annonces à louer trouvées.")
     except TimeoutException:
         logger.warning(f"Timeout on results page: {page_url}")
     except Exception as e:
@@ -135,19 +138,19 @@ def _get_listing_urls(driver, page_url: str) -> list[str]:
 
 def _scrape_listing(driver, url: str) -> dict:
     record = {
-        "titre":              "",
-        "prix":               "",
-        "prix_type":          "mensuel",   # ✅ nouveau champ: mensuel | journalier | inconnu
-        "ville":              "",
-        "quartier":           "",
-        "surface":            "",
-        "nb_chambres":        "",
-        "nb_salles_bain":     "",
-        "etage":              "",
+        "titre": "",
+        "prix": "",
+        "prix_type": "mensuel",   # ✅ nouveau champ: mensuel | journalier | inconnu
+        "ville": "",
+        "quartier": "",
+        "surface": "",
+        "nb_chambres": "",
+        "nb_salles_bain": "",
+        "etage": "",
         "annee_construction": "",
-        "lien":               url,
-        "scraped_at":         datetime.utcnow().isoformat(),
-        "error":              None,
+        "lien": url,
+        "scraped_at": datetime.utcnow().isoformat(),
+        "error": None,
     }
     try:
         driver.get(url)
@@ -158,7 +161,10 @@ def _scrape_listing(driver, url: str) -> dict:
         # ── Titre ──────────────────────────────────────────────────────────
         titre = _safe_text(driver, "h1")
         # ✅ FIX: حذف كود الوكالة من العنوان (مثال: RBA-YA-1053 - Appartement...)
-        titre = re.sub(r'^[A-Z]{2,5}-[A-Z]{2,5}-\d+\s*[-–]\s*', '', titre).strip()
+        titre = re.sub(
+            r'^[A-Z]{2,5}-[A-Z]{2,5}-\d+\s*[-–]\s*',
+            '',
+            titre).strip()
         record["titre"] = titre
 
         # ✅ FIX: كشف الإيجار اليومي وتسجيله
@@ -196,9 +202,13 @@ def _scrape_listing(driver, url: str) -> dict:
                     parts = [p.strip() for p in txt.split(",")]
                     if len(parts) == 2 and all(parts):
                         # ✅ FIX: التحقق أن كلا الجزأين أحرف فقط (ليس أرقام أو رموز)
-                        if all(re.match(r"^[\w\s\-\.'éèêëàâùûüîïôç]+$", p, re.UNICODE) for p in parts):
+                        if all(
+                            re.match(
+                                r"^[\w\s\-\.'éèêëàâùûüîïôç]+$",
+                                p,
+                                re.UNICODE) for p in parts):
                             record["quartier"] = parts[0]
-                            record["ville"]    = parts[1]
+                            record["ville"] = parts[1]
                             break
 
         # ── Attributs ──────────────────────────────────────────────────────
@@ -246,11 +256,11 @@ def _scrape_listing(driver, url: str) -> dict:
     return record
 
 
-# ── Bronze persistence ────────────────────────────────────────────────────────
+# ── Bronze persistence ──────────────────────────────────────────────────
 
 def _save_bronze(records: list[dict]) -> str:
     os.makedirs(BRONZE_DIR, exist_ok=True)
-    ts   = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+    ts = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
     path = os.path.join(BRONZE_DIR, f"avito_raw_{ts}.json")
     with open(path, "w", encoding="utf-8") as f:
         json.dump(records, f, ensure_ascii=False, indent=2)
@@ -258,7 +268,7 @@ def _save_bronze(records: list[dict]) -> str:
     return path
 
 
-# ── Fill rate monitor ─────────────────────────────────────────────────────────
+# ── Fill rate monitor ───────────────────────────────────────────────────
 
 def _log_fill_rates(records: list[dict]) -> None:
     if not records:
@@ -279,10 +289,11 @@ def _log_fill_rates(records: list[dict]) -> None:
     # ✅ FIX: إحصائيات prix_type
     daily_count = sum(1 for r in records if r.get("prix_type") == "journalier")
     if daily_count:
-        logger.warning(f"⚠️ {daily_count}/{total} إعلانات إيجار يومي — راجعها يدوياً")
+        logger.warning(
+            f"⚠️ {daily_count}/{total} إعلانات إيجار يومي — راجعها يدوياً")
 
 
-# ── Validity guard ────────────────────────────────────────────────────────────
+# ── Validity guard ──────────────────────────────────────────────────────
 
 def _is_valid_record(record: dict) -> bool:
     """
@@ -292,13 +303,13 @@ def _is_valid_record(record: dict) -> bool:
     return bool(record.get("prix")) and bool(record.get("ville"))
 
 
-# ── Entry point ───────────────────────────────────────────────────────────────
+# ── Entry point ─────────────────────────────────────────────────────────
 
 def run_scraper(max_pages: int = MAX_PAGES) -> list[dict]:
     logger.info("=== Scraper started ===")
-    driver      = _build_driver()
+    driver = _build_driver()
     all_records = []
-    skipped     = 0
+    skipped = 0
 
     try:
         for page_num in range(1, max_pages + 1):
@@ -310,7 +321,8 @@ def run_scraper(max_pages: int = MAX_PAGES) -> list[dict]:
                 listing_urls = _get_listing_urls(driver, page_url)
                 if listing_urls:
                     break
-                logger.warning(f"Attempt {attempt + 1}: no URLs found, retrying…")
+                logger.warning(
+                    f"Attempt {attempt + 1}: no URLs found, retrying…")
                 time.sleep(SCRAPER_TIMEOUT)
 
             if not listing_urls:
@@ -361,7 +373,7 @@ def run_scraper(max_pages: int = MAX_PAGES) -> list[dict]:
                 else:
                     skipped += 1
                     logger.warning(
-                        f"❌ Invalid record skipped (missing prix/ville): "
+                        "❌ Invalid record skipped (missing prix/ville): "
                         f"{record.get('titre', url)[:60]}"
                     )
 

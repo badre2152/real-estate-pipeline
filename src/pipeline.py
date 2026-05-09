@@ -1,3 +1,12 @@
+from src.config import PIPELINE_MAX_RETRIES as MAX_RETRIES, PIPELINE_RETRY_DELAY as RETRY_DELAY, MAX_PAGES  # noqa: E501
+from src.utils.logger import get_logger
+from src.utils.migrations import run_all_migrations
+from src.utils.db import execute_query, close_pool
+from src.warehouse.ml_schema import run_ml_schema
+from src.warehouse.bi_schema import run_bi_schema
+from src.clean.clean_data import run_clean
+from src.staging.load_staging import run_staging
+from src.extract.scraper import run_scraper
 import sys
 import time
 import os
@@ -6,17 +15,8 @@ from typing import Any, Callable
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from src.extract.scraper        import run_scraper
-from src.staging.load_staging   import run_staging
-from src.clean.clean_data       import run_clean
-from src.warehouse.bi_schema    import run_bi_schema
-from src.warehouse.ml_schema    import run_ml_schema
-from src.utils.db               import execute_query, close_pool
-from src.utils.migrations       import run_all_migrations
-from src.utils.logger           import get_logger
-from src.config                 import PIPELINE_MAX_RETRIES as MAX_RETRIES, PIPELINE_RETRY_DELAY as RETRY_DELAY, MAX_PAGES
 
-# ── Great Expectations (optional) ─────────────────────────────────────────────
+# ── Great Expectations (optional) ───────────────────────────────────────
 try:
     from src.expectations.gx_bronze import run_bronze_checkpoint
     from src.expectations.gx_silver import run_silver_checkpoint
@@ -27,9 +27,13 @@ except ImportError:
 logger = get_logger("pipeline")
 
 
-# ── Retry wrapper ─────────────────────────────────────────────────────────────
+# ── Retry wrapper ───────────────────────────────────────────────────────
 
-def _run(step_name: str, fn: Callable[..., Any], *args: Any, **kwargs: Any) -> Any:
+def _run(step_name: str,
+         fn: Callable[...,
+                      Any],
+         *args: Any,
+         **kwargs: Any) -> Any:
     for attempt in range(1, MAX_RETRIES + 1):
         try:
             logger.info(f"[{step_name}] ── attempt {attempt}/{MAX_RETRIES}")
@@ -39,8 +43,10 @@ def _run(step_name: str, fn: Callable[..., Any], *args: Any, **kwargs: Any) -> A
         except Exception as exc:
             logger.error(f"[{step_name}] ✗ attempt {attempt} failed: {exc}")
             if attempt < MAX_RETRIES:
-                delay = RETRY_DELAY * (2 ** (attempt - 1)) + random.uniform(0, 2)
-                logger.info(f"[{step_name}] retrying in {delay:.1f}s… (exponential backoff)")
+                delay = RETRY_DELAY * \
+                    (2 ** (attempt - 1)) + random.uniform(0, 2)
+                logger.info(
+                    f"[{step_name}] retrying in {delay:.1f}s… (exponential backoff)")
                 time.sleep(delay)
             else:
                 logger.critical(
@@ -57,7 +63,7 @@ def _cleanup_staging() -> None:
         logger.warning(f"Staging cleanup failed (non-fatal): {exc}")
 
 
-# ── Main ──────────────────────────────────────────────────────────────────────
+# ── Main ────────────────────────────────────────────────────────────────
 
 def run_pipeline() -> None:
     logger.info("━" * 55)
@@ -69,15 +75,15 @@ def run_pipeline() -> None:
         # FIX #14: Apply all centralised DDL migrations once at pipeline start.
         _run("MIGRATIONS", run_all_migrations)
 
-        raw = _run("EXTRACT", run_scraper, max_pages=MAX_PAGES)  # configured in src/config.py
+        # configured in src/config.py
+        raw = _run("EXTRACT", run_scraper, max_pages=MAX_PAGES)
 
         # FIX #5-log: Log page count and raw record totals for traceability.
         _pages_used = MAX_PAGES
-        _raw_count  = len(raw) if raw else 0
+        _raw_count = len(raw) if raw else 0
         logger.info(
             f"[EXTRACT] pages_requested={_pages_used} | raw_records={_raw_count} | "
-            f"valid_records={_raw_count} (after scraper validity guard)"
-        )
+            f"valid_records={_raw_count} (after scraper validity guard)")
 
         if not raw:
             logger.critical(
@@ -86,10 +92,10 @@ def run_pipeline() -> None:
             )
             sys.exit(1)
 
-        if len(raw) < 10:                          
+        if len(raw) < 10:
             logger.warning(
                 f"EXTRACT returned only {len(raw)} listings "
-                f"(expected ≥ 10) — possible partial block."
+                "(expected ≥ 10) — possible partial block."
             )
 
         # 2 — Staging (includes bronze_validator internally)
@@ -98,10 +104,16 @@ def run_pipeline() -> None:
 
         # 2b — GX Bronze checkpoint (optional, runs after bronze_validator)
         if GX_ENABLED:
-            import glob, os
-            bronze_files = sorted(glob.glob(
-                os.path.join(os.path.dirname(__file__), "..", "data", "bronze", "avito_raw_*.json")
-            ))
+            import glob
+            import os
+            bronze_files = sorted(
+                glob.glob(
+                    os.path.join(
+                        os.path.dirname(__file__),
+                        "..",
+                        "data",
+                        "bronze",
+                        "avito_raw_*.json")))
             if bronze_files:
                 gx_passed = run_bronze_checkpoint(bronze_files[-1])
                 if not gx_passed:

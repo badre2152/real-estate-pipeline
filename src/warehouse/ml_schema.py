@@ -73,7 +73,7 @@ _COLS = [
 ]
 
 INT_MIN = -2_147_483_648
-INT_MAX =  2_147_483_647
+INT_MAX = 2_147_483_647
 
 _INT_COLS = ["nb_chambres", "nb_salles_bain"]
 
@@ -133,11 +133,13 @@ def run_ml_schema(df: pd.DataFrame | None = None) -> None:
         return
 
     null_prix = df["prix"].isna().sum()
-    total     = len(df)
-    logger.info(f"Target variable (prix): {total - null_prix}/{total} valid values")
+    total = len(df)
+    logger.info(
+        f"Target variable (prix): {total - null_prix}/{total} valid values")
 
     if null_prix == total:
-        logger.warning("All prix values are NULL — skipping feature store load.")
+        logger.warning(
+            "All prix values are NULL — skipping feature store load.")
         return
 
     df = df.copy()
@@ -145,7 +147,7 @@ def run_ml_schema(df: pd.DataFrame | None = None) -> None:
         if col in df.columns:
             df[col] = df[col].apply(_safe_int)
 
-    sub  = df[_COLS].where(pd.notna(df[_COLS]), None)
+    sub = df[_COLS].where(pd.notna(df[_COLS]), None)
     rows = [tuple(r) for r in sub.itertuples(index=False, name=None)]
 
     safe_rows = []
@@ -156,7 +158,11 @@ def run_ml_schema(df: pd.DataFrame | None = None) -> None:
             if isinstance(val, (float,)) and val != val:  # NaN check
                 safe_row.append(None)
             elif isinstance(val, (int, float)) and col not in _INT_COLS:
-                safe_row.append(None if (isinstance(val, float) and val != val) else val)
+                safe_row.append(
+                    None if (
+                        isinstance(
+                            val,
+                            float) and val != val) else val)
             else:
                 safe_row.append(val)
         safe_rows.append(tuple(safe_row))
@@ -182,7 +188,7 @@ def _save_gold_ml(df: pd.DataFrame) -> None:
         )
         return
 
-    ts       = datetime.now(tz=timezone.utc).strftime("%Y%m%d_%H%M%S")
+    ts = datetime.now(tz=timezone.utc).strftime("%Y%m%d_%H%M%S")
     date_pfx = datetime.now(tz=timezone.utc).strftime("%Y/%m/%d")
     part_dir = os.path.join(GOLD_ML_DIR, date_pfx)
     os.makedirs(part_dir, exist_ok=True)
@@ -203,4 +209,5 @@ def _save_gold_ml(df: pd.DataFrame) -> None:
         df.to_parquet(parquet_path, index=False, engine="pyarrow")
         logger.info(f"Gold ML Parquet → {parquet_path}  ({len(df)} rows)")
     except Exception as e:
-        logger.warning(f"Gold ML Parquet skipped (pyarrow not installed?): {e}")
+        logger.warning(
+            f"Gold ML Parquet skipped (pyarrow not installed?): {e}")

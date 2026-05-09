@@ -10,15 +10,6 @@ Coverage:
   - Edge cases: empty list, single record, all-artefact villes
 """
 
-import sys
-import os
-import unittest
-
-# ── Path setup ────────────────────────────────────────────────────────────────
-PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, PROJECT_ROOT)
-
-from tests.conftest import make_bronze_record, make_bronze_records
 from src.staging.bronze_validator import (
     validate_bronze,
     BronzeValidationError,
@@ -34,6 +25,14 @@ from src.staging.bronze_validator import (
     _rule_artefact_villes,
     HARD_MIN_RECORDS,
 )
+from tests.conftest import make_bronze_record, make_bronze_records
+import sys
+import os
+import unittest
+
+# ── Path setup ──────────────────────────────────────────────────────────
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, PROJECT_ROOT)
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -320,10 +319,15 @@ class TestValidateBronzeIntegration(unittest.TestCase):
 
     def test_real_bronze_file(self):
         """Smoke test: run against the actual bronze fixture file."""
-        import json, glob
+        import json
+        import glob
         bronze_files = sorted(
-            glob.glob(os.path.join(PROJECT_ROOT, "data", "bronze", "avito_raw_*.json"))
-        )
+            glob.glob(
+                os.path.join(
+                    PROJECT_ROOT,
+                    "data",
+                    "bronze",
+                    "avito_raw_*.json")))
         if not bronze_files:
             self.skipTest("No bronze fixture file found")
         with open(bronze_files[-1], encoding="utf-8") as f:

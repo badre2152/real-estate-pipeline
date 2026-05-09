@@ -25,17 +25,17 @@ except ImportError:
 import pandas as pd
 
 
-# ── Paths ─────────────────────────────────────────────────────────────────────
+# ── Paths ───────────────────────────────────────────────────────────────
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
-GX_ROOT      = PROJECT_ROOT / "gx"
-SUITE_NAME   = "silver_suite"
-DS_NAME      = "silver_pandas_ds"
-ASSET_NAME   = "silver_asset"
+GX_ROOT = PROJECT_ROOT / "gx"
+SUITE_NAME = "silver_suite"
+DS_NAME = "silver_pandas_ds"
+ASSET_NAME = "silver_asset"
 CURRENT_YEAR = datetime.datetime.now().year
 
 
-# ── Context ───────────────────────────────────────────────────────────────────
+# ── Context ─────────────────────────────────────────────────────────────
 
 def _get_context():
     # Use ephemeral context — nothing is written to disk, so no "suite already
@@ -43,7 +43,7 @@ def _get_context():
     return gx.get_context(mode="ephemeral")
 
 
-# ── Suite builder (GX 0.18+ API) ──────────────────────────────────────────────
+# ── Suite builder (GX 0.18+ API) ────────────────────────────────────────
 
 def _build_silver_suite(context) -> None:
     """Create or overwrite the silver expectation suite using GX 0.18+ API."""
@@ -83,7 +83,7 @@ def _build_silver_suite(context) -> None:
         expectation_suite=suite,
     )
 
-    # ── 1. Schema ──────────────────────────────────────────────────────────────
+    # ── 1. Schema ───────────────────────────────────────────────────────────
     for col in [
         "prix", "prix_type", "ville", "lien", "scraped_at",
         "surface_m2", "prix_par_m2", "categorie_prix",
@@ -91,22 +91,32 @@ def _build_silver_suite(context) -> None:
     ]:
         validator.expect_column_to_exist(col)
 
-    # ── 2. Completeness ────────────────────────────────────────────────────────
-    validator.expect_column_values_to_not_be_null("prix",      mostly=0.99)
-    validator.expect_column_values_to_not_be_null("ville",     mostly=0.99)
-    validator.expect_column_values_to_not_be_null("lien",      mostly=1.0)
+    # ── 2. Completeness ─────────────────────────────────────────────────────
+    validator.expect_column_values_to_not_be_null("prix", mostly=0.99)
+    validator.expect_column_values_to_not_be_null("ville", mostly=0.99)
+    validator.expect_column_values_to_not_be_null("lien", mostly=1.0)
     validator.expect_column_values_to_not_be_null("prix_type", mostly=1.0)
 
-    # ── 3. Numeric ranges ──────────────────────────────────────────────────────
+    # ── 3. Numeric ranges ───────────────────────────────────────────────────
     # Only apply range checks to columns that are always populated (prix, surface_m2,
     # prix_par_m2). Columns that are frequently NULL (nb_chambres, nb_salles_bain,
     # age_bien, annee_construction) are skipped here — GX raises errors when
-    # both bounds are None or when bound types don't match nullable column types.
-    validator.expect_column_values_to_be_between("prix",       min_value=MIN_PRIX,    max_value=MAX_PRIX,    mostly=GX_SILVER_MOSTLY)
-    validator.expect_column_values_to_be_between("surface_m2", min_value=MIN_SURFACE, max_value=MAX_SURFACE, mostly=GX_SURFACE_MOSTLY)
-    validator.expect_column_values_to_be_between("prix_par_m2",min_value=1.0,   max_value=50_000.0,  mostly=0.90)
+    # both bounds are None or when bound types don't match nullable column
+    # types.
+    validator.expect_column_values_to_be_between(
+        "prix",
+        min_value=MIN_PRIX,
+        max_value=MAX_PRIX,
+        mostly=GX_SILVER_MOSTLY)
+    validator.expect_column_values_to_be_between(
+        "surface_m2",
+        min_value=MIN_SURFACE,
+        max_value=MAX_SURFACE,
+        mostly=GX_SURFACE_MOSTLY)
+    validator.expect_column_values_to_be_between(
+        "prix_par_m2", min_value=1.0, max_value=50_000.0, mostly=0.90)
 
-    # ── 4. Categorical sets ────────────────────────────────────────────────────
+    # ── 4. Categorical sets ─────────────────────────────────────────────────
     validator.expect_column_values_to_be_in_set(
         "prix_type",
         value_set=["mensuel", "journalier", "inconnu"],
@@ -134,26 +144,32 @@ def _build_silver_suite(context) -> None:
         mostly=1.0,
     )
 
-    # ── 5. Format ──────────────────────────────────────────────────────────────
-    validator.expect_column_values_to_match_regex("lien",       regex=r"^https://www\.avito\.ma/", mostly=1.0)
-    validator.expect_column_values_to_match_regex("scraped_at", regex=r"^\d{4}-\d{2}-\d{2}",      mostly=1.0)
+    # ── 5. Format ───────────────────────────────────────────────────────────
+    validator.expect_column_values_to_match_regex(
+        "lien", regex=r"^https://www\.avito\.ma/", mostly=1.0)
+    validator.expect_column_values_to_match_regex(
+        "scraped_at", regex=r"^\d{4}-\d{2}-\d{2}", mostly=1.0)
 
-    # ── 6. Uniqueness ──────────────────────────────────────────────────────────
+    # ── 6. Uniqueness ───────────────────────────────────────────────────────
     validator.expect_column_values_to_be_unique("lien")
 
-    # ── 7. Table-level ─────────────────────────────────────────────────────────
-    validator.expect_table_row_count_to_be_between(min_value=2, max_value=100_000)
+    # ── 7. Table-level ──────────────────────────────────────────────────────
+    validator.expect_table_row_count_to_be_between(
+        min_value=2, max_value=100_000)
 
 
-# ── Checkpoint runner ─────────────────────────────────────────────────────────
+# ── Checkpoint runner ───────────────────────────────────────────────────
 
-def run_silver_checkpoint(df_clean: pd.DataFrame, run_label: str = "silver") -> bool:
+def run_silver_checkpoint(
+        df_clean: pd.DataFrame,
+        run_label: str = "silver") -> bool:
     """
     Validate a cleaned DataFrame using the GX silver suite.
     Returns True if all expectations pass.
     """
     if not GX_AVAILABLE:
-        raise ImportError("great_expectations is not installed. Run: pip install great-expectations")
+        raise ImportError(
+            "great_expectations is not installed. Run: pip install great-expectations")
 
     context = _get_context()
 
@@ -186,13 +202,16 @@ def run_silver_checkpoint(df_clean: pd.DataFrame, run_label: str = "silver") -> 
         gx.ValidationDefinition(name=vd_name, data=batch_def, suite=suite)
     )
 
-    raw_result: dict = dict(validation_def.run(batch_parameters={"dataframe": df_clean.copy()}))
+    raw_result: dict = dict(
+        validation_def.run(
+            batch_parameters={
+                "dataframe": df_clean.copy()}))
 
-    success:    bool = bool(raw_result.get("success", False))
-    stats:      dict = dict(raw_result.get("statistics", {}))
-    evaluated:  int  = int(stats.get("evaluated_expectations",  0))
-    successful: int  = int(stats.get("successful_expectations", 0))
-    failed:     int  = int(stats.get("unsuccessful_expectations", 0))
+    success: bool = bool(raw_result.get("success", False))
+    stats: dict = dict(raw_result.get("statistics", {}))
+    evaluated: int = int(stats.get("evaluated_expectations", 0))
+    successful: int = int(stats.get("successful_expectations", 0))
+    failed: int = int(stats.get("unsuccessful_expectations", 0))
 
     _print_summary(run_label, evaluated, successful, failed, success)
 
@@ -226,8 +245,10 @@ def rebuild_suite() -> None:
 
 
 if __name__ == "__main__":
-    import sys, glob
-    files = sorted(glob.glob(str(PROJECT_ROOT / "data" / "silver" / "avito_clean_*.csv")))
+    import sys
+    import glob
+    files = sorted(
+        glob.glob(str(PROJECT_ROOT / "data" / "silver" / "avito_clean_*.csv")))
     if not files:
         print("No silver CSV files found.")
         sys.exit(1)
