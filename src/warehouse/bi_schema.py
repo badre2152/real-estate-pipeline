@@ -15,6 +15,9 @@ import os
 import numpy as np
 import pandas as pd
 from datetime import datetime
+from typing import Any, Optional
+
+import psycopg2.extensions
 
 from src.utils.db import get_connection, release_connection, execute_query, fetch_all
 from src.utils.logger import get_logger
@@ -141,7 +144,7 @@ _VIEWS = [
 ]
 
 
-def _upsert_localisation(cur, ville, quartier, region_label, is_grande_ville) -> int:
+def _upsert_localisation(cur: psycopg2.extensions.cursor, ville: str, quartier: str | None, region_label: str, is_grande_ville: bool) -> int:
     # FIX #Q1: quartier_known=TRUE only when quartier is a real non-empty value.
     # This lets Power BI filter out the "unknown quartier" bucket from per-quartier stats.
     quartier_val  = quartier or ""
@@ -163,7 +166,7 @@ def _upsert_localisation(cur, ville, quartier, region_label, is_grande_ville) ->
     return cur.fetchone()[0]
 
 
-def _safe_int(v, default=None):
+def _safe_int(v: Any, default: Optional[int] = None) -> Optional[int]:
     if v is None or (isinstance(v, float) and v != v):
         return default
     try:
@@ -172,7 +175,7 @@ def _safe_int(v, default=None):
         return default
 
 
-def _upsert_caracteristiques(cur, nb_ch, nb_sb, etage) -> int:
+def _upsert_caracteristiques(cur: psycopg2.extensions.cursor, nb_ch: int | None, nb_sb: int | None, etage: int | None) -> int:
     # FIX #Q2: annee_construction and age_bien removed — always NULL in Avito data.
     nb_ch = _safe_int(nb_ch)
     nb_sb = _safe_int(nb_sb)
@@ -207,7 +210,7 @@ def _upsert_caracteristiques(cur, nb_ch, nb_sb, etage) -> int:
     return cur.fetchone()[0]
 
 
-def _upsert_temps(cur, scraped_at) -> int:
+def _upsert_temps(cur: psycopg2.extensions.cursor, scraped_at: str) -> int:
     if scraped_at is None or (isinstance(scraped_at, float) and np.isnan(scraped_at)):
         d = datetime.utcnow().date()
     elif isinstance(scraped_at, datetime):
@@ -234,7 +237,7 @@ def _upsert_temps(cur, scraped_at) -> int:
     return cur.fetchone()[0]
 
 
-def _validate(inserted_this_run: int):
+def _validate(inserted_this_run: int) -> None:
     logger.info("── Post-load BI validation starting ──")
     warnings = 0
 
@@ -281,7 +284,7 @@ def _fetch_clean() -> pd.DataFrame:
         release_connection(conn)
 
 
-def run_bi_schema(df: pd.DataFrame | None = None):
+def run_bi_schema(df: pd.DataFrame | None = None) -> None:
     logger.info("=== BI Schema load started ===")
 
     for stmt in _DDL:
@@ -305,7 +308,7 @@ def run_bi_schema(df: pd.DataFrame | None = None):
     count   = 0
     skipped = 0
 
-    def _val(v):
+    def _val(v: Any) -> Any:
         return None if pd.isna(v) else v
 
     # FIX #11: Use itertuples instead of iterrows.
@@ -399,42 +402,51 @@ def run_bi_schema(df: pd.DataFrame | None = None):
     _save_gold_bi()
 
 
-def _save_gold_bi():
+def _save_gold_bi() -> None:
     """
-    Export BI gold layer to data/gold/bi/.
-    Exports:
-      - annonces_full_TIMESTAMP.csv      → full denormalized view (v_annonces_full)
-      - prix_par_ville_TIMESTAMP.csv     → aggregated price stats per city
-      - prix_par_quartier_TIMESTAMP.csv  → aggregated price stats per known quartier
-    FIX #5: Added explicit row-count check and warning when export produces 0 rows.
+    Export BI gold layer partitioned by date only:
+      data/gold/bi/YYYY/MM/DD/annonces_full_<ts>.csv + .parquet
+      data/gold/bi/YYYY/MM/DD/prix_par_ville_<ts>.csv + .parquet
+      data/gold/bi/YYYY/MM/DD/prix_par_quartier_<ts>.csv + .parquet
     """
-    os.makedirs(GOLD_BI_DIR, exist_ok=True)
-    ts = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+    from datetime import timezone
+    ts       = datetime.now(tz=timezone.utc).strftime("%Y%m%d_%H%M%S")
+    date_pfx = datetime.now(tz=timezone.utc).strftime("%Y/%m/%d")
+    part_dir = os.path.join(GOLD_BI_DIR, date_pfx)
+    os.makedirs(part_dir, exist_ok=True)
 
     exports = [
-        ("SELECT * FROM bi_schema.v_annonces_full;",     f"annonces_full_{ts}.csv"),
-        ("SELECT * FROM bi_schema.v_prix_par_ville;",    f"prix_par_ville_{ts}.csv"),
-        ("SELECT * FROM bi_schema.v_prix_par_quartier;", f"prix_par_quartier_{ts}.csv"),
+        ("SELECT * FROM bi_schema.v_annonces_full;",     f"annonces_full_{ts}"),
+        ("SELECT * FROM bi_schema.v_prix_par_ville;",    f"prix_par_ville_{ts}"),
+        ("SELECT * FROM bi_schema.v_prix_par_quartier;", f"prix_par_quartier_{ts}"),
     ]
 
     conn = get_connection()
     exported_ok = 0
     try:
-        for sql, filename in exports:
+        for sql, stem in exports:
             try:
                 df = pd.read_sql(sql, conn)
                 if df.empty:
-                    logger.warning(
-                        f"Gold BI — {filename}: query returned 0 rows. "
-                        f"Check that run_bi_schema() completed successfully before _save_gold_bi()."
-                    )
+                    logger.warning(f"Gold BI — {stem}: query returned 0 rows.")
                     continue
-                path = os.path.join(GOLD_BI_DIR, filename)
-                df.to_csv(path, index=False, encoding="utf-8")
-                logger.info(f"Gold BI → {path}  ({len(df)} rows)")
+
+                # CSV
+                csv_path = os.path.join(part_dir, f"{stem}.csv")
+                df.to_csv(csv_path, index=False, encoding="utf-8")
+                logger.info(f"Gold BI CSV     → {csv_path}  ({len(df)} rows)")
+
+                # Parquet
+                parquet_path = os.path.join(part_dir, f"{stem}.parquet")
+                try:
+                    df.to_parquet(parquet_path, index=False, engine="pyarrow")
+                    logger.info(f"Gold BI Parquet → {parquet_path}  ({len(df)} rows)")
+                except Exception as e:
+                    logger.warning(f"Gold BI Parquet skipped [{stem}]: {e}")
+
                 exported_ok += 1
             except Exception as e:
-                logger.warning(f"Gold BI export failed for {filename}: {e}")
+                logger.warning(f"Gold BI export failed for {stem}: {e}")
     finally:
         release_connection(conn)
 
@@ -444,4 +456,4 @@ def _save_gold_bi():
             "The bi_schema tables may be empty — verify the pipeline ran end-to-end."
         )
     else:
-        logger.info(f"Gold BI: {exported_ok}/{len(exports)} files exported successfully.")
+        logger.info(f"Gold BI: {exported_ok}/{len(exports)} exports saved successfully.")
