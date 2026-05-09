@@ -82,7 +82,7 @@ def _latest_bronze_file() -> str | None:
     return files[0] if files else None
 
 
-def _qc_report(records: list[dict]):
+def _qc_report(records: list[dict]) -> None:
     """Log a fill-rate report for every field — initial quality control."""
     n = len(records)
     if n == 0:
