@@ -22,6 +22,7 @@ Coverage:
     - no_duplicate_liens (hard)
     - no_artefact_villes (hard)
     - prix_par_m2_consistency (soft)
+    - age_bien (soft)
     - surface_positive (soft)
     - nb_fields_range (soft)
 
@@ -50,6 +51,7 @@ from src.clean.clean_validator import (
     _post_no_duplicate_liens,
     _post_no_artefact_villes,
     _post_prix_par_m2_consistency,
+    _post_age_bien_valid,
     _post_surface_positive,
     _post_nb_fields_range,
     HARD_MIN_STAGING_ROWS,
@@ -59,12 +61,15 @@ import sys
 import os
 import unittest
 
+
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, PROJECT_ROOT)
+
 
 # ══════════════════════════════════════════════════════════════════════════════
 # PRE-CLEAN HARD RULES
 # ══════════════════════════════════════════════════════════════════════════════
+
 
 class TestPreMinRows(unittest.TestCase):
 
@@ -81,6 +86,7 @@ class TestPreMinRows(unittest.TestCase):
 
     def test_passes_at_exact_minimum(self):
         _pre_min_rows(make_staging_df(HARD_MIN_STAGING_ROWS))
+
 
 class TestPreRequiredColumns(unittest.TestCase):
 
@@ -108,6 +114,7 @@ class TestPreRequiredColumns(unittest.TestCase):
         df["extra"] = "ok"
         _pre_required_columns(df)  # must not raise
 
+
 class TestPrePrixFill(unittest.TestCase):
 
     def test_passes_with_all_filled(self):
@@ -129,6 +136,7 @@ class TestPrePrixFill(unittest.TestCase):
         df = make_staging_df(10, prix=vals)
         _pre_prix_fill(df)  # must not raise
 
+
 class TestPreSoftRules(unittest.TestCase):
 
     def test_all_null_rows_does_not_raise(self):
@@ -146,9 +154,11 @@ class TestPreSoftRules(unittest.TestCase):
         df.loc[0, "ville"] = "COURS ET FORMATIONS"
         _pre_artefact_villes(df)   # soft — must not raise
 
+
 # ══════════════════════════════════════════════════════════════════════════════
 # POST-CLEAN HARD RULES
 # ══════════════════════════════════════════════════════════════════════════════
+
 
 class TestPostMinRows(unittest.TestCase):
 
@@ -168,6 +178,7 @@ class TestPostMinRows(unittest.TestCase):
     def test_passes_at_exactly_20_pct_retained(self):
         """20% retained = 80% dropped — exactly at hard limit, should pass."""
         _post_min_rows(make_clean_df(4), n_staging=20)  # 4/20 = 20% retained
+
 
 class TestPostRequiredColumns(unittest.TestCase):
 
@@ -195,6 +206,7 @@ class TestPostRequiredColumns(unittest.TestCase):
         with self.assertRaises(CleanValidationError):
             _post_required_columns(df)
 
+
 class TestPostNoRawSurfaceCol(unittest.TestCase):
 
     def test_passes_with_only_surface_m2(self):
@@ -214,6 +226,7 @@ class TestPostNoRawSurfaceCol(unittest.TestCase):
         # must not raise (different validation handles this)
         _post_no_raw_surface_col(df)
 
+
 class TestPostPrixFill(unittest.TestCase):
 
     def test_passes_with_all_filled(self):
@@ -227,6 +240,7 @@ class TestPostPrixFill(unittest.TestCase):
 
     def test_passes_at_100_pct(self):
         _post_prix_fill(make_clean_df(10))
+
 
 class TestPostVilleFill(unittest.TestCase):
 
@@ -244,6 +258,7 @@ class TestPostVilleFill(unittest.TestCase):
         df = make_clean_df(10, ville=villes)
         with self.assertRaises(CleanValidationError):
             _post_ville_fill(df)
+
 
 class TestPostPrixPositive(unittest.TestCase):
 
@@ -266,6 +281,7 @@ class TestPostPrixPositive(unittest.TestCase):
         df = make_clean_df(5, prix=[None, 5000.0, 5000.0, 5000.0, 5000.0])
         _post_prix_positive(df)  # must not raise
 
+
 class TestPostNoDuplicateLiens(unittest.TestCase):
 
     def test_passes_with_unique_liens(self):
@@ -282,6 +298,7 @@ class TestPostNoDuplicateLiens(unittest.TestCase):
         df = make_clean_df(5, lien=["https://www.avito.ma/fr/appt-1"] * 5)
         with self.assertRaises(CleanValidationError):
             _post_no_duplicate_liens(df)
+
 
 class TestPostNoArtefactVilles(unittest.TestCase):
 
@@ -301,9 +318,11 @@ class TestPostNoArtefactVilles(unittest.TestCase):
         with self.assertRaises(CleanValidationError):
             _post_no_artefact_villes(df)
 
+
 # ══════════════════════════════════════════════════════════════════════════════
 # POST-CLEAN SOFT RULES
 # ══════════════════════════════════════════════════════════════════════════════
+
 
 class TestPostSoftRules(unittest.TestCase):
 
@@ -324,6 +343,17 @@ class TestPostSoftRules(unittest.TestCase):
             surface_m2=[80.0] * 5,
             prix_par_m2=[999.9] * 5)
         _post_prix_par_m2_consistency(df)   # soft — must not raise
+
+    def test_age_bien_valid(self):
+        _post_age_bien_valid(make_clean_df(5, age_bien=[10, 20, 30, 5, 50]))
+
+    def test_age_bien_negative_does_not_raise(self):
+        df = make_clean_df(5, age_bien=[-5, 10, 10, 10, 10])
+        _post_age_bien_valid(df)   # soft — must not raise
+
+    def test_age_bien_over_200_does_not_raise(self):
+        df = make_clean_df(5, age_bien=[250, 10, 10, 10, 10])
+        _post_age_bien_valid(df)   # soft — must not raise
 
     def test_surface_positive(self):
         _post_surface_positive(make_clean_df(5))
@@ -348,15 +378,19 @@ class TestPostSoftRules(unittest.TestCase):
         """Soft rules should gracefully handle missing optional columns."""
         df = make_clean_df(5).drop(
             columns=[
+                "age_bien",
                 "surface_m2",
                 "prix_par_m2"],
             errors="ignore")
+        _post_age_bien_valid(df)
         _post_surface_positive(df)
         _post_prix_par_m2_consistency(df)
+
 
 # ══════════════════════════════════════════════════════════════════════════════
 # INTEGRATION: validate_pre_clean() and validate_post_clean()
 # ══════════════════════════════════════════════════════════════════════════════
+
 
 class TestValidatePreCleanIntegration(unittest.TestCase):
 
@@ -376,6 +410,7 @@ class TestValidatePreCleanIntegration(unittest.TestCase):
         df = make_staging_df(10, prix=[None] * 10)
         with self.assertRaises(CleanValidationError):
             validate_pre_clean(df)
+
 
 class TestValidatePostCleanIntegration(unittest.TestCase):
 
@@ -437,9 +472,11 @@ class TestValidatePostCleanIntegration(unittest.TestCase):
         summary = validate_post_clean(df, n_staging=len(df))
         self.assertGreater(summary["clean_rows"], 0)
 
+
 # ══════════════════════════════════════════════════════════════════════════════
 # FIX #2 — journalier_suspect detection (_detect_daily_rental)
 # ══════════════════════════════════════════════════════════════════════════════
+
 
 class TestDetectDailyRental(unittest.TestCase):
     '''
@@ -507,9 +544,11 @@ class TestDetectDailyRental(unittest.TestCase):
             self.assertEqual(
                 r, 'mensuel', f'{ville} at 1001 DH should stay mensuel')
 
+
 # ══════════════════════════════════════════════════════════════════════════════
 # FIX #3 — Surface cap (SURFACE_MAX_RESIDENTIAL = 800 m²)
 # ══════════════════════════════════════════════════════════════════════════════
+
 
 class TestSurfaceCap(unittest.TestCase):
     '''
@@ -559,9 +598,11 @@ class TestSurfaceCap(unittest.TestCase):
             800,
             'SURFACE_MAX_RESIDENTIAL changed — update BI/ML thresholds accordingly')
 
+
 # ══════════════════════════════════════════════════════════════════════════════
 # FIX #4 — etage "0" → "Non précisé"
 # ══════════════════════════════════════════════════════════════════════════════
+
 
 class TestEtageZeroNormalization(unittest.TestCase):
     '''
@@ -609,6 +650,7 @@ class TestEtageZeroNormalization(unittest.TestCase):
         df = make_staging_df(5, etage=[None, '1', '2', '3', '4'])
         result = self._run_clean_on_df(df)
         self.assertNotIn(None, result['etage'].values)
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
