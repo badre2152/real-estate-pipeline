@@ -1,4 +1,5 @@
 import os
+from typing import Any
 """
 ML Schema — One Big Table (OBT) / Feature Store.
 All features in one flat table. No encoding, scaling, or SMOTE here —
@@ -77,7 +78,7 @@ INT_MAX =  2_147_483_647
 _INT_COLS = ["nb_chambres", "nb_salles_bain"]
 
 
-def _safe_int(val):
+def _safe_int(val: Any) -> int | None:
     """Convert value to safe PostgreSQL INTEGER or None."""
     if val is None or (isinstance(val, float) and np.isnan(val)):
         return None
@@ -98,7 +99,7 @@ def _fetch_clean() -> pd.DataFrame:
         release_connection(conn)
 
 
-def run_ml_schema(df: pd.DataFrame | None = None):
+def run_ml_schema(df: pd.DataFrame | None = None) -> None:
     logger.info("=== ML Schema load started ===")
 
     # ✅ FIX: تنفيذ كل جملة DDL بشكل مستقل
@@ -167,14 +168,13 @@ def run_ml_schema(df: pd.DataFrame | None = None):
     _save_gold_ml(df[_COLS].where(pd.notna(df[_COLS]), None))
 
 
-def _save_gold_ml(df: pd.DataFrame):
+def _save_gold_ml(df: pd.DataFrame) -> None:
     """
-    Export ML gold layer to data/gold/ml/.
-    Exports:
-      - feature_store_TIMESTAMP.csv     → full flat feature table
-      - feature_store_TIMESTAMP.parquet → same data in Parquet format
-    FIX #5: Added empty-df guard and clear error logging.
+    Export ML gold layer partitioned by date only:
+      data/gold/ml/YYYY/MM/DD/feature_store_<ts>.csv
+      data/gold/ml/YYYY/MM/DD/feature_store_<ts>.parquet
     """
+    from datetime import timezone
     if df.empty:
         logger.error(
             "Gold ML: DataFrame is empty — nothing to export. "
@@ -182,20 +182,25 @@ def _save_gold_ml(df: pd.DataFrame):
         )
         return
 
-    os.makedirs(GOLD_ML_DIR, exist_ok=True)
-    ts = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+    ts       = datetime.now(tz=timezone.utc).strftime("%Y%m%d_%H%M%S")
+    date_pfx = datetime.now(tz=timezone.utc).strftime("%Y/%m/%d")
+    part_dir = os.path.join(GOLD_ML_DIR, date_pfx)
+    os.makedirs(part_dir, exist_ok=True)
 
-    csv_path     = os.path.join(GOLD_ML_DIR, f"feature_store_{ts}.csv")
-    parquet_path = os.path.join(GOLD_ML_DIR, f"feature_store_{ts}.parquet")
+    stem = f"feature_store_{ts}"
 
+    # CSV
+    csv_path = os.path.join(part_dir, f"{stem}.csv")
     try:
         df.to_csv(csv_path, index=False, encoding="utf-8")
-        logger.info(f"Gold ML (CSV)     → {csv_path}  ({len(df)} rows)")
+        logger.info(f"Gold ML CSV     → {csv_path}  ({len(df)} rows)")
     except Exception as e:
         logger.warning(f"Gold ML CSV export failed: {e}")
 
+    # Parquet
+    parquet_path = os.path.join(part_dir, f"{stem}.parquet")
     try:
         df.to_parquet(parquet_path, index=False, engine="pyarrow")
-        logger.info(f"Gold ML (Parquet) → {parquet_path}  ({len(df)} rows)")
+        logger.info(f"Gold ML Parquet → {parquet_path}  ({len(df)} rows)")
     except Exception as e:
-        logger.warning(f"Gold ML Parquet export failed (pyarrow not installed?): {e}")
+        logger.warning(f"Gold ML Parquet skipped (pyarrow not installed?): {e}")
