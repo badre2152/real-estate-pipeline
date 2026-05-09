@@ -21,6 +21,12 @@ from datetime import datetime, timezone
 from urllib.parse import urlparse
 
 from src.utils.logger import get_logger
+from src.config import (
+    HARD_MIN_RECORDS,
+    HARD_MIN_PRIX_FILL_PCT,
+    HARD_MIN_VILLE_FILL_PCT,
+    AVITO_BASE_URL,
+)
 
 logger = get_logger("bronze_validator")
 
@@ -33,14 +39,9 @@ class BronzeValidationError(Exception):
 
 # ── Thresholds ────────────────────────────────────────────────────────────────
 
-HARD_MIN_RECORDS        = 5          # abort if fewer records than this
-HARD_MIN_PRIX_FILL_PCT  = 0.50       # abort if <50% of records have prix
-HARD_MIN_VILLE_FILL_PCT = 0.50       # abort if <50% of records have ville
-
 SOFT_MIN_FILL_PCT       = 0.40       # warn if field fill-rate below 40%
 
 VALID_PRIX_TYPES        = {"mensuel", "journalier", "journalier_suspect", "inconnu"}
-AVITO_BASE_URL          = "https://www.avito.ma"
 
 # Cities that are known scraper artefacts — never valid ville values
 ARTEFACT_VILLES         = {

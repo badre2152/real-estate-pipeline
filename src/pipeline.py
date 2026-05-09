@@ -1,7 +1,8 @@
 import sys
 import time
 import os
-
+import random
+from typing import Any, Callable
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
@@ -13,9 +14,9 @@ from src.warehouse.ml_schema    import run_ml_schema
 from src.utils.db               import execute_query, close_pool
 from src.utils.migrations       import run_all_migrations
 from src.utils.logger           import get_logger
+from src.config                 import PIPELINE_MAX_RETRIES as MAX_RETRIES, PIPELINE_RETRY_DELAY as RETRY_DELAY, MAX_PAGES
 
 # ── Great Expectations (optional) ─────────────────────────────────────────────
-# GX runs AFTER the custom validators. If not installed, skipped gracefully.
 try:
     from src.expectations.gx_bronze import run_bronze_checkpoint
     from src.expectations.gx_silver import run_silver_checkpoint
@@ -23,15 +24,12 @@ try:
 except ImportError:
     GX_ENABLED = False
 
-logger       = get_logger("pipeline")
-MAX_RETRIES  = 3
-RETRY_DELAY  = 10    # base delay in seconds — doubles on each retry (exponential backoff)
+logger = get_logger("pipeline")
 
 
 # ── Retry wrapper ─────────────────────────────────────────────────────────────
 
-def _run(step_name: str, fn, *args, **kwargs):
-    import random
+def _run(step_name: str, fn: Callable[..., Any], *args: Any, **kwargs: Any) -> Any:
     for attempt in range(1, MAX_RETRIES + 1):
         try:
             logger.info(f"[{step_name}] ── attempt {attempt}/{MAX_RETRIES}")
@@ -41,7 +39,6 @@ def _run(step_name: str, fn, *args, **kwargs):
         except Exception as exc:
             logger.error(f"[{step_name}] ✗ attempt {attempt} failed: {exc}")
             if attempt < MAX_RETRIES:
-                # Exponential backoff with jitter: base * 2^(attempt-1) + random jitter
                 delay = RETRY_DELAY * (2 ** (attempt - 1)) + random.uniform(0, 2)
                 logger.info(f"[{step_name}] retrying in {delay:.1f}s… (exponential backoff)")
                 time.sleep(delay)
@@ -52,7 +49,7 @@ def _run(step_name: str, fn, *args, **kwargs):
                 raise
 
 
-def _cleanup_staging():
+def _cleanup_staging() -> None:
     try:
         execute_query("TRUNCATE TABLE staging.raw_annonces RESTART IDENTITY;")
         logger.info("Staging table truncated.")
@@ -62,7 +59,7 @@ def _cleanup_staging():
 
 # ── Main ──────────────────────────────────────────────────────────────────────
 
-def run_pipeline():
+def run_pipeline() -> None:
     logger.info("━" * 55)
     logger.info("  AVITO.MA DATA PIPELINE — START")
     logger.info("━" * 55)
@@ -72,11 +69,10 @@ def run_pipeline():
         # FIX #14: Apply all centralised DDL migrations once at pipeline start.
         _run("MIGRATIONS", run_all_migrations)
 
-        raw = _run("EXTRACT", run_scraper, max_pages=25)  # 25 صفحة → ~500 إعلان
+        raw = _run("EXTRACT", run_scraper, max_pages=MAX_PAGES)  # configured in src/config.py
 
         # FIX #5-log: Log page count and raw record totals for traceability.
-        # Previously the log only said ✓ success with no numbers.
-        _pages_used = 25  # matches max_pages arg above
+        _pages_used = MAX_PAGES
         _raw_count  = len(raw) if raw else 0
         logger.info(
             f"[EXTRACT] pages_requested={_pages_used} | raw_records={_raw_count} | "

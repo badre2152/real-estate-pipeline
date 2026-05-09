@@ -11,6 +11,11 @@ from __future__ import annotations
 import datetime
 from pathlib import Path
 
+from src.config import (
+    GX_SILVER_MOSTLY, GX_SURFACE_MOSTLY,
+    MIN_PRIX, MAX_PRIX, MIN_SURFACE, MAX_SURFACE,
+)
+
 try:
     import great_expectations as gx
     GX_AVAILABLE = True
@@ -97,8 +102,8 @@ def _build_silver_suite(context) -> None:
     # prix_par_m2). Columns that are frequently NULL (nb_chambres, nb_salles_bain,
     # age_bien, annee_construction) are skipped here — GX raises errors when
     # both bounds are None or when bound types don't match nullable column types.
-    validator.expect_column_values_to_be_between("prix",       min_value=100.0, max_value=500_000.0, mostly=0.99)
-    validator.expect_column_values_to_be_between("surface_m2", min_value=5.0,   max_value=5_000.0,   mostly=0.90)
+    validator.expect_column_values_to_be_between("prix",       min_value=MIN_PRIX,    max_value=MAX_PRIX,    mostly=GX_SILVER_MOSTLY)
+    validator.expect_column_values_to_be_between("surface_m2", min_value=MIN_SURFACE, max_value=MAX_SURFACE, mostly=GX_SURFACE_MOSTLY)
     validator.expect_column_values_to_be_between("prix_par_m2",min_value=1.0,   max_value=50_000.0,  mostly=0.90)
 
     # ── 4. Categorical sets ────────────────────────────────────────────────────

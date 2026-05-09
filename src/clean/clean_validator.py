@@ -35,6 +35,13 @@ import numpy as np
 import pandas as pd
 
 from src.utils.logger import get_logger
+from src.config import (
+    HARD_MIN_PRIX_FILL_STAGING,
+    HARD_MAX_DROP_RATE,
+    SOFT_PRIX_M2_FILL,
+    AVITO_BASE_URL,
+    VALID_CATEGORIES,
+)
 
 logger = get_logger("clean_validator")
 
@@ -49,19 +56,15 @@ class CleanValidationError(Exception):
 
 # Pre-clean (staging)
 HARD_MIN_STAGING_ROWS       = 3     # abort if staging is nearly empty
-HARD_MIN_PRIX_FILL_STAGING  = 0.50  # abort if <50% staging rows have prix
 
 # Post-clean (cleaned output)
 HARD_MIN_CLEAN_ROWS         = 2     # abort if cleaning wiped almost everything
-HARD_MAX_DROP_RATE          = 0.80  # abort if >80% of staging rows were dropped
 HARD_MIN_PRIX_FILL_CLEAN    = 0.90  # abort if <90% of clean rows have prix
 HARD_MIN_VILLE_FILL_CLEAN   = 0.90  # abort if <90% of clean rows have ville
 
-SOFT_PRIX_M2_FILL           = 0.50  # warn if prix_par_m2 < 50% filled
 SOFT_MAX_OUTLIER_PCT        = 0.15  # warn if >15% rows have extreme prix
 
 VALID_PRIX_TYPES    = {"mensuel", "journalier", "journalier_suspect", "inconnu"}
-VALID_CATEGORIES    = {"Très Bas", "Bas", "Moyen", "Élevé", "Luxe", "Inconnu"}
 VALID_REGIONS       = {
     "Casablanca-Settat", "Rabat-Salé-Kénitra", "Marrakech-Safi",
     "Fès-Meknès", "Tanger-Tétouan-Al Hoceïma", "Souss-Massa",
@@ -70,7 +73,6 @@ VALID_REGIONS       = {
     "Autre",
 }
 ARTEFACT_VILLES     = {"COURS ET FORMATIONS", "Cours Et Formations", "cours et formations"}
-AVITO_BASE_URL      = "https://www.avito.ma"
 CURRENT_YEAR        = datetime.now().year
 
 

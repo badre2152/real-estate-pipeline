@@ -12,33 +12,31 @@ from psycopg2 import pool as pg_pool
 from psycopg2.extras import execute_values
 from dotenv import load_dotenv
 from src.utils.logger import get_logger
+from src.config import DB_POOL_MIN, DB_POOL_MAX
 
 load_dotenv()
 logger = get_logger("db")
 
 # ── Connection Pool ──────────────────────────────────────────────────────────
-# FIX #53: Use a connection pool instead of open/close per query.
-# Min=1 keeps one warm connection; Max=10 handles concurrent tasks.
 _pool: pg_pool.ThreadedConnectionPool | None = None
-_pool_lock = threading.Lock()  # Guards pool initialisation against race conditions.
+_pool_lock = threading.Lock()
 
 
 def _get_pool() -> pg_pool.ThreadedConnectionPool:
     global _pool
-    # Double-checked locking: fast path avoids lock on every call.
     if _pool is None or _pool.closed:
         with _pool_lock:
-            if _pool is None or _pool.closed:  # re-check inside lock
+            if _pool is None or _pool.closed:
                 _pool = pg_pool.ThreadedConnectionPool(
-            minconn=1,
-            maxconn=10,
+                    minconn=DB_POOL_MIN,
+                    maxconn=DB_POOL_MAX,
                     host=os.getenv("DB_HOST", "localhost"),
                     port=int(os.getenv("DB_PORT", 5432)),
                     dbname=os.getenv("DB_NAME", "avito_db"),
                     user=os.getenv("DB_USER", "postgres"),
                     password=os.getenv("DB_PASSWORD"),
                 )
-                logger.info("Connection pool initialised (min=1, max=10).")
+                logger.info(f"Connection pool initialised (min={DB_POOL_MIN}, max={DB_POOL_MAX}).")
     return _pool
 
 

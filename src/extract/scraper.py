@@ -20,14 +20,15 @@ from selenium.common.exceptions import (
 )
 
 from src.utils.logger import get_logger
+from src.config import (
+    AVITO_RENT_URL  as BASE_URL,
+    MAX_PAGES,
+    DELAY_MIN,
+    DELAY_MAX,
+    SCRAPER_TIMEOUT,
+)
 
 logger = get_logger("scraper")
-
-# ✅ FIX: URL يستهدف الإيجار فقط (شقق + فيلات + استوديو + ...)
-BASE_URL   = "https://www.avito.ma/fr/maroc/immobilier-%C3%A0_louer"
-MAX_PAGES  = 25  # زيادة إلى 25 صفحة → ~500 إعلان لتجاوز عتبة الـ outlier filter بمريح
-DELAY_MIN  = 2.5  # زيادة التأخير قليلاً لتجنّب الحظر عند scraping طويل
-DELAY_MAX  = 5.0
 BRONZE_DIR = os.path.join(os.path.dirname(__file__), "../../data/bronze")
 
 # ✅ FIX: كلمات مفتاحية محدّثة — تضيف studio/louer، تحذف terrain/ferme
@@ -310,7 +311,7 @@ def run_scraper(max_pages: int = MAX_PAGES) -> list[dict]:
                 if listing_urls:
                     break
                 logger.warning(f"Attempt {attempt + 1}: no URLs found, retrying…")
-                time.sleep(5)
+                time.sleep(SCRAPER_TIMEOUT)
 
             if not listing_urls:
                 logger.warning("No listings found — stopping pagination.")

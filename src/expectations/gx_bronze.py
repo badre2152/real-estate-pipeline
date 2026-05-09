@@ -12,6 +12,13 @@ import json
 import datetime
 from pathlib import Path
 
+from src.config import (
+    GX_MIN_ROWS, GX_MAX_ROWS,
+    GX_PRIX_MOSTLY, GX_VILLE_MOSTLY,
+    MIN_PRIX, MAX_PRIX, MIN_SURFACE, MAX_SURFACE,
+    AVITO_BASE_URL,
+)
+
 try:
     import great_expectations as gx
     GX_AVAILABLE = True
@@ -112,8 +119,8 @@ def _build_bronze_suite(context) -> None:
         validator.expect_column_to_exist(col)
 
     # ── 2. Completeness ────────────────────────────────────────────────────────
-    validator.expect_column_values_to_not_be_null("prix",      mostly=0.50)
-    validator.expect_column_values_to_not_be_null("ville",     mostly=0.50)
+    validator.expect_column_values_to_not_be_null("prix",      mostly=GX_PRIX_MOSTLY)
+    validator.expect_column_values_to_not_be_null("ville",     mostly=GX_VILLE_MOSTLY)
     validator.expect_column_values_to_not_be_null("titre",     mostly=0.80)
     validator.expect_column_values_to_not_be_null("scraped_at",mostly=1.0)
 
@@ -136,7 +143,7 @@ def _build_bronze_suite(context) -> None:
     validator.expect_column_values_to_be_unique("lien")
 
     # ── 6. Table-level ─────────────────────────────────────────────────────────
-    validator.expect_table_row_count_to_be_between(min_value=5, max_value=10_000)
+    validator.expect_table_row_count_to_be_between(min_value=GX_MIN_ROWS, max_value=GX_MAX_ROWS)
     validator.expect_table_columns_to_match_set(
         column_set=[
             "titre", "prix", "prix_type", "ville", "quartier",
