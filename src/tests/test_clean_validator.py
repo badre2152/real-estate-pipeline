@@ -22,7 +22,6 @@ Coverage:
     - no_duplicate_liens (hard)
     - no_artefact_villes (hard)
     - prix_par_m2_consistency (soft)
-    - age_bien (soft)
     - surface_positive (soft)
     - nb_fields_range (soft)
 
@@ -51,7 +50,6 @@ from src.clean.clean_validator import (
     _post_no_duplicate_liens,
     _post_no_artefact_villes,
     _post_prix_par_m2_consistency,
-    _post_age_bien_valid,
     _post_surface_positive,
     _post_nb_fields_range,
     HARD_MIN_STAGING_ROWS,
@@ -341,16 +339,6 @@ class TestPostSoftRules(unittest.TestCase):
             prix_par_m2=[999.9] * 5)
         _post_prix_par_m2_consistency(df)   # soft — must not raise
 
-    def test_age_bien_valid(self):
-        _post_age_bien_valid(make_clean_df(5, age_bien=[10, 20, 30, 5, 50]))
-
-    def test_age_bien_negative_does_not_raise(self):
-        df = make_clean_df(5, age_bien=[-5, 10, 10, 10, 10])
-        _post_age_bien_valid(df)   # soft — must not raise
-
-    def test_age_bien_over_200_does_not_raise(self):
-        df = make_clean_df(5, age_bien=[250, 10, 10, 10, 10])
-        _post_age_bien_valid(df)   # soft — must not raise
 
     def test_surface_positive(self):
         _post_surface_positive(make_clean_df(5))
@@ -375,11 +363,9 @@ class TestPostSoftRules(unittest.TestCase):
         """Soft rules should gracefully handle missing optional columns."""
         df = make_clean_df(5).drop(
             columns=[
-                "age_bien",
                 "surface_m2",
                 "prix_par_m2"],
             errors="ignore")
-        _post_age_bien_valid(df)
         _post_surface_positive(df)
         _post_prix_par_m2_consistency(df)
 

@@ -466,7 +466,10 @@ def _clean(df: pd.DataFrame) -> pd.DataFrame:
     df["ville"] = df["ville"].apply(_standardize_ville)
     # ✅ FIX: quartier ذكي — يحذف القيم بلا معنى ويحترم حروف الجر
     df["quartier"] = df["quartier"].fillna("").apply(_clean_quartier)
-    df["titre"] = df["titre"].fillna("").str.strip()
+    if "titre" in df.columns:
+        df["titre"] = df["titre"].fillna("").str.strip()
+    else:
+        df["titre"] = ""
     # FIX #4: etage = "0" → "Non précisé"
     # الـ scraper يستخرج "0" عندما لا يجد قيمة — ليس طابق أرضي حقيقي.
     # نعالجه هنا قبل _apply_missing_value_strategy حتى لا يمر كقيمة صحيحة.

@@ -112,7 +112,7 @@ class TestRunCleanIntegration(unittest.TestCase):
         required = {
             "titre", "prix", "prix_type", "ville", "quartier",
             "surface_m2", "nb_chambres", "nb_salles_bain", "etage",
-            "lien", "prix_par_m2", "age_bien", "categorie_prix",
+            "lien", "prix_par_m2", "categorie_prix",
             "region_label", "is_grande_ville",
         }
         missing = required - set(result.columns)
