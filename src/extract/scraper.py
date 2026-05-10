@@ -20,6 +20,7 @@ from selenium.common.exceptions import (
 )
 
 from src.utils.logger import get_logger
+from src.utils.db import fetch_all
 from src.config import (
     AVITO_RENT_URL as BASE_URL,
     MAX_PAGES,
@@ -30,6 +31,9 @@ from src.config import (
 
 logger = get_logger("scraper")
 BRONZE_DIR = os.path.join(os.path.dirname(__file__), "../../data/bronze")
+
+# Incremental scraping — stop after this many consecutive known listings
+_INCREMENTAL_STOP_AFTER = 5
 
 # ✅ FIX: كلمات مفتاحية محدّثة — تضيف studio/louer، تحذف terrain/ferme
 IMMOBILIER_KEYWORDS = [
@@ -259,9 +263,13 @@ def _scrape_listing(driver, url: str) -> dict:
 # ── Bronze persistence ──────────────────────────────────────────────────
 
 def _save_bronze(records: list[dict]) -> str:
-    os.makedirs(BRONZE_DIR, exist_ok=True)
-    ts = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
-    path = os.path.join(BRONZE_DIR, f"avito_raw_{ts}.json")
+    from datetime import timezone
+    now      = datetime.now(tz=timezone.utc)
+    ts       = now.strftime("%Y%m%d_%H%M%S")
+    date_pfx = now.strftime("%Y/%m/%d")
+    part_dir = os.path.join(BRONZE_DIR, date_pfx)
+    os.makedirs(part_dir, exist_ok=True)
+    path = os.path.join(part_dir, f"avito_raw_{ts}.json")
     with open(path, "w", encoding="utf-8") as f:
         json.dump(records, f, ensure_ascii=False, indent=2)
     logger.info(f"Bronze saved → {path}  ({len(records)} records)")
@@ -303,13 +311,40 @@ def _is_valid_record(record: dict) -> bool:
     return bool(record.get("prix")) and bool(record.get("ville"))
 
 
+# ── Incremental scraping ────────────────────────────────────────────────
+
+def _get_known_liens() -> set[str]:
+    """
+    Fetch all liens already stored in staging.raw_annonces.
+    Returns an empty set if DB is unreachable or table doesn't exist yet.
+    """
+    try:
+        rows = fetch_all("SELECT lien FROM staging.raw_annonces WHERE lien IS NOT NULL;")
+        known = {row[0] for row in rows}
+        logger.info(f"Incremental mode: {len(known)} liens already in DB.")
+        return known
+    except Exception as e:
+        logger.warning(f"Could not fetch known liens (fresh DB?): {e} — running full scrape.")
+        return set()
+
+
+def _is_already_scraped(url: str, known_liens: set[str]) -> bool:
+    """Return True if this URL already exists in staging."""
+    return url in known_liens
+
+
 # ── Entry point ─────────────────────────────────────────────────────────
 
 def run_scraper(max_pages: int = MAX_PAGES) -> list[dict]:
     logger.info("=== Scraper started ===")
     driver = _build_driver()
-    all_records = []
+    all_records: list[dict] = []
     skipped = 0
+
+    # ── Incremental: load known liens from DB once ─────────────────────
+    known_liens   = _get_known_liens()
+    consecutive_known = 0
+    incremental_stopped = False
 
     try:
         for page_num in range(1, max_pages + 1):
@@ -330,6 +365,26 @@ def run_scraper(max_pages: int = MAX_PAGES) -> list[dict]:
                 break
 
             for url in listing_urls:
+
+                # ── Incremental check ──────────────────────────────────
+                if known_liens and _is_already_scraped(url, known_liens):
+                    consecutive_known += 1
+                    logger.debug(
+                        f"[incremental] Known listing ({consecutive_known}/"
+                        f"{_INCREMENTAL_STOP_AFTER}): {url}"
+                    )
+                    if consecutive_known >= _INCREMENTAL_STOP_AFTER:
+                        logger.info(
+                            f"[incremental] {_INCREMENTAL_STOP_AFTER} consecutive known "
+                            f"listings — stopping early. "
+                            f"{len(all_records)} new records collected."
+                        )
+                        incremental_stopped = True
+                        break
+                    continue   # skip scraping this URL
+                else:
+                    consecutive_known = 0  # reset counter on new listing
+
                 try:
                     record = _scrape_listing(driver, url)
 
@@ -365,7 +420,6 @@ def run_scraper(max_pages: int = MAX_PAGES) -> list[dict]:
                         "scraped_at": datetime.utcnow().isoformat(),
                     }
 
-                # ✅ FIX: حارس الصحة — فقط السجلات الصالحة تُضاف
                 if record.get("error"):
                     skipped += 1
                 elif _is_valid_record(record):
@@ -379,6 +433,9 @@ def run_scraper(max_pages: int = MAX_PAGES) -> list[dict]:
 
                 time.sleep(random.uniform(DELAY_MIN, DELAY_MAX))
 
+            if incremental_stopped:
+                break
+
     except WebDriverException as e:
         logger.error(f"WebDriver fatal error: {e}")
     finally:
@@ -388,11 +445,16 @@ def run_scraper(max_pages: int = MAX_PAGES) -> list[dict]:
             pass
         logger.info("WebDriver closed.")
 
-    _save_bronze(all_records)
-    _log_fill_rates(all_records)
+    if all_records:
+        _save_bronze(all_records)
+        _log_fill_rates(all_records)
+    else:
+        logger.info("No new records — bronze file not written.")
 
+    mode = "incremental (stopped early)" if incremental_stopped else (
+           "incremental (full scan)" if known_liens else "full (fresh DB)")
     logger.info(
-        f"=== Scraper finished — {len(all_records)} valid records "
+        f"=== Scraper finished [{mode}] — {len(all_records)} new records "
         f"| {skipped} skipped ==="
     )
     return all_records

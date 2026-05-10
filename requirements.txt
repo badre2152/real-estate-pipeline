@@ -24,6 +24,9 @@ scikit-learn==1.4.2
 # Data quality
 great-expectations==1.3.10
 
+# Retry logic
+tenacity==8.5.0
+
 # Environment & utilities
 python-dotenv==1.2.2
 python-dateutil==2.9.0.post0

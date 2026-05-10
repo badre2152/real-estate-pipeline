@@ -19,7 +19,7 @@ AVITO_RENT_URL = os.getenv(
     "https://www.avito.ma/fr/maroc/immobilier-%C3%A0_louer",
 )
 # pages per run (~20 listings/page)
-MAX_PAGES = int(os.getenv("MAX_PAGES", "25"))
+MAX_PAGES = int(os.getenv("MAX_PAGES", "3"))
 # min seconds between detail requests
 DELAY_MIN = float(os.getenv("DELAY_MIN", "2.5"))
 # max seconds between detail requests

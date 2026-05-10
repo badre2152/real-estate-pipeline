@@ -161,8 +161,16 @@ def run_staging(
         logger.warning("Empty record list — nothing to insert.")
         return run_id
 
+    # In incremental mode (DB already has data), fewer new records is normal.
     try:
-        validate_bronze(records)
+        from src.utils.db import fetch_all
+        existing = fetch_all("SELECT COUNT(*) FROM staging.raw_annonces;")
+        is_incremental = existing and existing[0][0] > 0
+    except Exception:
+        is_incremental = False
+
+    try:
+        validate_bronze(records, is_incremental=is_incremental)
     except BronzeValidationError as e:
         logger.critical(f"❌ BRONZE VALIDATION FAILED: {e}")
         raise

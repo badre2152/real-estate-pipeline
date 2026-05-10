@@ -3,7 +3,7 @@ services:
   # ── PostgreSQL ──────────────────────────────────────────────────────────────
   postgres:
     image: postgres:15
-    container_name: avito_postgres2
+    container_name: avito_postgres3
     environment:
       POSTGRES_USER:     ${DB_USER}
       POSTGRES_PASSWORD: ${DB_PASSWORD}
@@ -25,7 +25,7 @@ services:
   # ── Pipeline ────────────────────────────────────────────────────────────────
   pipeline:
     build: .
-    container_name: avito_pipeline2
+    container_name: avito_pipeline3
     depends_on:
       postgres:
         condition: service_healthy

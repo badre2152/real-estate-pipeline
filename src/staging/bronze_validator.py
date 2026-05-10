@@ -269,7 +269,7 @@ def _rule_soft_field_fill_rates(records: list[dict]) -> None:
 
 # ── Public entry point ──────────────────────────────────────────────────
 
-def validate_bronze(records: list[dict]) -> dict:
+def validate_bronze(records: list[dict], is_incremental: bool = False) -> dict:
     """
     Run all validation rules against raw bronze records.
 
@@ -284,8 +284,9 @@ def validate_bronze(records: list[dict]) -> dict:
     hard_failures = 0
 
     # ── HARD rules — any failure aborts the pipeline ────────────────────────
-    hard_rules = [
-        ("min_records", _rule_min_records),
+    # In incremental mode, skip min_records check (few new records is normal)
+    min_records_rule = [] if is_incremental else [("min_records", _rule_min_records)]
+    hard_rules = min_records_rule + [
         ("required_keys", _rule_required_keys),
         ("prix_fill_rate", _rule_prix_fill_rate),
         ("ville_fill_rate", _rule_ville_fill_rate),

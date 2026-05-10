@@ -269,7 +269,7 @@ def _validate(inserted_this_run: int) -> None:
 
     for dim, col in [("dim_localisation", "id_localisation"),
                      ("dim_caracteristiques", "id_caracteristiques")]:
-        rows = fetch_all("""
+        rows = fetch_all(f"""
             SELECT COUNT(*) FROM bi_schema.fact_annonce f
             WHERE f.{col} IS NOT NULL
               AND NOT EXISTS (

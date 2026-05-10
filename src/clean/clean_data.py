@@ -33,7 +33,7 @@ CREATE TABLE IF NOT EXISTS clean.annonces (
     surface_m2          NUMERIC,
     nb_chambres         INTEGER,
     nb_salles_bain      INTEGER,
-    etage               TEXT,
+    etage               INTEGER,
     lien                TEXT UNIQUE,
     scraped_at          TIMESTAMP,
     prix_par_m2         NUMERIC,
@@ -412,15 +412,37 @@ def _apply_missing_value_strategy(df: pd.DataFrame) -> pd.DataFrame:
     ]
     logger.info(
         f"Missing-value strategy: dropped {n1 - len(df)} rows with empty/artefact ville")
-    df["etage"] = df["etage"].fillna("Non précisé").replace("", "Non précisé")
+    # Convert etage to integer: extract number, Rez=0, unknown=None then fill with median
+    def _etage_to_int(val):
+        if pd.isna(val) or str(val).strip() in ("", "Non précisé", "Non precis"):
+            return None
+        s = str(val).lower().strip()
+        if "rez" in s or s == "0":
+            return 0
+        import re as _re
+        m = _re.search(r"\d+", s)
+        if m:
+            n = int(m.group())
+            return n if n <= 50 else None  # ignore implausible floors
+        return None
+
+    df["etage"] = df["etage"].apply(_etage_to_int)
+    median_etage = df["etage"].median()
+    if pd.isna(median_etage):
+        median_etage = 1
+    df["etage"] = df["etage"].fillna(int(median_etage)).astype(int)
+
     df["titre"] = df["titre"].fillna("Sans titre").replace("", "Sans titre")
     df["quartier"] = df["quartier"].fillna("")
     df["scraped_at"] = df["scraped_at"].fillna(pd.Timestamp.utcnow())
-    # ✅ FIX: nb_salles_bain = 0 → None (معالَج في _clean_int لكن نضمن هنا)
-    if "nb_salles_bain" in df.columns:
-        df["nb_salles_bain"] = df["nb_salles_bain"].apply(
-            lambda x: None if x == 0 else x
-        )
+
+    # Fill nb_chambres and nb_salles_bain nulls with median
+    for col in ["nb_chambres", "nb_salles_bain"]:
+        if col in df.columns:
+            median_val = df[col].median()
+            if pd.isna(median_val):
+                median_val = 1
+            df[col] = df[col].fillna(int(median_val)).astype(int)
     logger.info(f"Missing-value strategy applied. Remaining rows: {len(df)}")
 
     # FIX #3: حذف السجلات بمساحة غير منطقية في سياق الإيجار السكني.
@@ -445,10 +467,7 @@ def _apply_missing_value_strategy(df: pd.DataFrame) -> pd.DataFrame:
                 f"(surface_m2 > {SURFACE_MAX_RESIDENTIAL} م²)."
             )
 
-    # FIX #4: etage = "0" مشبوه — يعني الـ scraper ما جمعه، ليس RDC حقيقي.
-    # نحوّله لـ "Non précisé" مثلما نفعل مع nb_chambres وnb_salles_bain.
-    if "etage" in df.columns:
-        df["etage"] = df["etage"].replace("0", "Non précisé")
+    # etage is now integer — no string replacement needed
 
     return df
 
@@ -473,12 +492,20 @@ def _clean(df: pd.DataFrame) -> pd.DataFrame:
     # FIX #4: etage = "0" → "Non précisé"
     # الـ scraper يستخرج "0" عندما لا يجد قيمة — ليس طابق أرضي حقيقي.
     # نعالجه هنا قبل _apply_missing_value_strategy حتى لا يمر كقيمة صحيحة.
-    df["etage"] = (
-        df["etage"]
-        .fillna("")
-        .str.strip()
-        .replace({"0": "Non précisé", "": "Non précisé"})
-    )
+    # etage: extract integer from raw string before _apply_missing_value_strategy
+    import re as _re
+    def _parse_etage(val):
+        if pd.isna(val) or str(val).strip() == "":
+            return None
+        s = str(val).lower().strip()
+        if "rez" in s:
+            return 0
+        m = _re.search(r"\d+", s)
+        if m:
+            n = int(m.group())
+            return n if n <= 50 else None
+        return None
+    df["etage"] = df["etage"].apply(_parse_etage)
     df["scraped_at"] = pd.to_datetime(df["scraped_at"], errors="coerce")
 
     # ✅ FIX: prix_type — أضف العمود إن لم يكن موجوداً (توافق مع staging القديمة)
