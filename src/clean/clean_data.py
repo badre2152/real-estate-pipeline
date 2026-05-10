@@ -432,6 +432,10 @@ def _apply_missing_value_strategy(df: pd.DataFrame) -> pd.DataFrame:
     if pd.isna(median_etage):
         median_etage = 1
     df["etage"] = df["etage"].fillna(int(median_etage)).astype(int)
+    # FIX #4: etage = 0 → "Non précisé" (scraper artefact), others → string
+    df["etage"] = df["etage"].apply(
+        lambda v: "Non précisé" if v == 0 else str(v)
+    )
 
     df["titre"] = df["titre"].fillna("Sans titre").replace("", "Sans titre")
     df["quartier"] = df["quartier"].fillna("")
@@ -490,24 +494,7 @@ def _clean(df: pd.DataFrame) -> pd.DataFrame:
         df["titre"] = df["titre"].fillna("").str.strip()
     else:
         df["titre"] = ""
-    # FIX #4: etage = "0" → "Non précisé"
-    # الـ scraper يستخرج "0" عندما لا يجد قيمة — ليس طابق أرضي حقيقي.
-    # نعالجه هنا قبل _apply_missing_value_strategy حتى لا يمر كقيمة صحيحة.
-    # etage: extract integer from raw string before _apply_missing_value_strategy
-    import re as _re
-
-    def _parse_etage(val):
-        if pd.isna(val) or str(val).strip() == "":
-            return None
-        s = str(val).lower().strip()
-        if "rez" in s:
-            return 0
-        m = _re.search(r"\d+", s)
-        if m:
-            n = int(m.group())
-            return n if n <= 50 else None
-        return None
-    df["etage"] = df["etage"].apply(_parse_etage)
+    # etage already processed above (0 → "Non précisé", others → string)
     df["scraped_at"] = pd.to_datetime(df["scraped_at"], errors="coerce")
 
     # ✅ FIX: prix_type — أضف العمود إن لم يكن موجوداً (توافق مع staging القديمة)
