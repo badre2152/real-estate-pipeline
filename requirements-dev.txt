@@ -22,7 +22,7 @@ ipython_pygments_lexers==1.1.1
 jedi==0.20.0
 parso==0.8.7
 nest-asyncio==1.6.0
-comm==0.2.2
+comm==0.2.3
 debugpy==1.8.20
 executing==2.2.1
 asttokens==3.0.1
