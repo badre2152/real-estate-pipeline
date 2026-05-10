@@ -173,7 +173,8 @@ def _upsert_localisation(
          region_label or "Autre",
          bool(is_grande_ville)),
     )
-    return cur.fetchone()[0]
+    row = cur.fetchone()
+    return row[0] if row is not None else 0
 
 
 def _safe_int(v: Any, default: Optional[int] = None) -> Optional[int]:
@@ -189,7 +190,7 @@ def _upsert_caracteristiques(
         cur: psycopg2.extensions.cursor,
         nb_ch: int | None,
         nb_sb: int | None,
-        etage: int | None) -> int:
+        etage: int | str | None) -> int:
     # FIX #Q2: annee_construction and age_bien removed — always NULL in Avito
     # data.
     nb_ch = _safe_int(nb_ch)
@@ -222,7 +223,8 @@ def _upsert_caracteristiques(
         """,
         (nb_ch, nb_sb, etage or ""),
     )
-    return cur.fetchone()[0]
+    row = cur.fetchone()
+    return row[0] if row is not None else 0
 
 
 def _upsert_temps(cur: psycopg2.extensions.cursor, scraped_at: str) -> int:
@@ -253,7 +255,8 @@ def _upsert_temps(cur: psycopg2.extensions.cursor, scraped_at: str) -> int:
         return row[0]
     cur.execute(
         "SELECT id_temps FROM bi_schema.dim_temps WHERE date_jour = %s", (d,))
-    return cur.fetchone()[0]
+    row = cur.fetchone()
+    return row[0] if row is not None else 0
 
 
 def _validate(inserted_this_run: int) -> None:
@@ -358,16 +361,16 @@ def run_bi_schema(df: pd.DataFrame | None = None) -> None:
 
                     id_loc = _upsert_localisation(
                         cur,
-                        _g("ville", ""),
-                        _g("quartier", ""),
-                        _g("region_label", "Autre"),
-                        _g("is_grande_ville", False),
+                        str(_g("ville", "")),
+                        str(_g("quartier", "")) or None,
+                        str(_g("region_label", "Autre")),
+                        bool(_g("is_grande_ville", False)),
                     )
                     id_car = _upsert_caracteristiques(
                         cur,
-                        _g("nb_chambres"),
-                        _g("nb_salles_bain"),
-                        _g("etage", ""),
+                        _safe_int(_g("nb_chambres")),
+                        _safe_int(_g("nb_salles_bain")),
+                        _safe_int(_g("etage")),
                     )
                     _scraped_at = getattr(row, "scraped_at", None)
                     _scraped_at_str = str(_scraped_at) if _scraped_at is not None else datetime.utcnow().isoformat()  # noqa: E501
@@ -454,7 +457,7 @@ def _save_gold_bi() -> None:
     try:
         for sql, stem in exports:
             try:
-                df = pd.read_sql(sql, conn)
+                df = pd.read_sql(sql, conn.connection)  # type: ignore[arg-type]
                 if df.empty:
                     logger.warning(f"Gold BI — {stem}: query returned 0 rows.")
                     continue

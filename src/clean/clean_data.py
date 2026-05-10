@@ -354,7 +354,7 @@ def _fetch_staging(run_id: str | None = None) -> pd.DataFrame:
                 WHERE run_id = %(run_id)s
                 ORDER BY loaded_at DESC
                 """,
-                conn,
+                conn.connection,  # type: ignore[arg-type]
                 params={"run_id": run_id},
             )
             logger.info(
@@ -366,7 +366,7 @@ def _fetch_staging(run_id: str | None = None) -> pd.DataFrame:
                 FROM staging.raw_annonces
                 ORDER BY lien, loaded_at DESC
                 """,
-                conn,
+                conn.connection,  # type: ignore[arg-type]
             )
             logger.info(
                 f"Fetched {len(df)} unique rows from staging (deduped by lien, no run_id filter).")

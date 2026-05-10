@@ -94,7 +94,8 @@ def _safe_int(val: Any) -> int | None:
 def _fetch_clean() -> pd.DataFrame:
     conn = get_connection()
     try:
-        return pd.read_sql("SELECT * FROM clean.annonces", conn)
+        con = conn.connection  # type: ignore[attr-defined]
+        return pd.read_sql("SELECT * FROM clean.annonces", con)
     finally:
         release_connection(conn)
 
