@@ -264,8 +264,8 @@ def _scrape_listing(driver, url: str) -> dict:
 
 def _save_bronze(records: list[dict]) -> str:
     from datetime import timezone
-    now      = datetime.now(tz=timezone.utc)
-    ts       = now.strftime("%Y%m%d_%H%M%S")
+    now = datetime.now(tz=timezone.utc)
+    ts = now.strftime("%Y%m%d_%H%M%S")
     date_pfx = now.strftime("%Y/%m/%d")
     part_dir = os.path.join(BRONZE_DIR, date_pfx)
     os.makedirs(part_dir, exist_ok=True)
@@ -342,7 +342,7 @@ def run_scraper(max_pages: int = MAX_PAGES) -> list[dict]:
     skipped = 0
 
     # ── Incremental: load known liens from DB once ─────────────────────
-    known_liens   = _get_known_liens()
+    known_liens = _get_known_liens()
     consecutive_known = 0
     incremental_stopped = False
 

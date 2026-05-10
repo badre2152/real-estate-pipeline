@@ -413,6 +413,7 @@ def _apply_missing_value_strategy(df: pd.DataFrame) -> pd.DataFrame:
     logger.info(
         f"Missing-value strategy: dropped {n1 - len(df)} rows with empty/artefact ville")
     # Convert etage to integer: extract number, Rez=0, unknown=None then fill with median
+
     def _etage_to_int(val):
         if pd.isna(val) or str(val).strip() in ("", "Non précisé", "Non precis"):
             return None
@@ -494,6 +495,7 @@ def _clean(df: pd.DataFrame) -> pd.DataFrame:
     # نعالجه هنا قبل _apply_missing_value_strategy حتى لا يمر كقيمة صحيحة.
     # etage: extract integer from raw string before _apply_missing_value_strategy
     import re as _re
+
     def _parse_etage(val):
         if pd.isna(val) or str(val).strip() == "":
             return None
