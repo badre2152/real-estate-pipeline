@@ -32,7 +32,7 @@ python-dotenv==1.2.2
 python-dateutil==2.9.0.post0
 
 # Networking internals (required by selenium/requests)
-certifi==2026.2.25
+certifi==2026.4.22
 charset-normalizer==3.4.7
 idna==3.12
 urllib3==2.6.3
