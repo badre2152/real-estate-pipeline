@@ -32,7 +32,7 @@ stack-data==0.6.3
 matplotlib-inline==0.2.1
 prompt_toolkit==3.0.52
 Pygments==2.20.0
-traitlets==5.14.3
+traitlets==5.15.0
 pyzmq==27.1.0
 pexpect==4.9.0
 ptyprocess==0.7.0
