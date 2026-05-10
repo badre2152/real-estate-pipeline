@@ -165,7 +165,7 @@ def run_staging(
     try:
         from src.utils.db import fetch_all
         existing = fetch_all("SELECT COUNT(*) FROM staging.raw_annonces;")
-        is_incremental = existing and existing[0][0] > 0
+        is_incremental = bool(existing and existing[0][0] > 0)
     except Exception:
         is_incremental = False
 
