@@ -42,7 +42,7 @@ jobs:
         run: python -m src.pipeline
 
       - name: Upload logs as artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: always()          # upload even if pipeline fails
         with:
           name: pipeline-logs-${{ github.run_id }}
@@ -50,7 +50,7 @@ jobs:
           retention-days: 30
 
       - name: Upload data artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: success()
         with:
           name: pipeline-data-${{ github.run_id }}
