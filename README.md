@@ -218,6 +218,25 @@ python src/pipeline.py
 
 ---
 
+## 🔗 Related Projects
+
+Ce pipeline alimente directement le dashboard BI suivant :
+
+| Repo | Rôle | Lien |
+|------|------|------|
+| ⚙️ **real-estate-pipeline** *(ce repo)* | Upstream — Scraping → ETL → PostgreSQL | — |
+| 📊 **avito-dashboards-and-repports** | Downstream — Power BI Dashboards & Reports | [badre2152/avito-dashboards-and-repports](https://github.com/badre2152/avito-dashboards-and-repports) |
+
+```
+real-estate-pipeline
+    └──> PostgreSQL (bi_schema)
+              └──> avito-dashboards-and-repports
+```
+
+> The dashboard repo consumes the `bi_schema` tables produced by this pipeline.
+
+---
+
 ## 🔌 Power BI Integration
 
 1. Connect to PostgreSQL 
