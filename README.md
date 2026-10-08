@@ -5,7 +5,15 @@
 ![License](https://img.shields.io/badge/license-MIT-green)
 
 
-End-to-end data engineering project that transforms raw real estate listings from **Avito.ma** into analytics-ready datasets and machine learning features.
+End to end data engineering project that transforms raw real estate listings from **Avito.ma** into analytics ready datasets and machine learning features.
+
+## 🔗 Project Evolution
+
+This repository is the evolved implementation of my Avito real estate data engineering project.
+
+The earlier version is preserved in [real-estate-data-pipeline](https://github.com/badre2152/real-estate-data-pipeline), where the initial Selenium, PostgreSQL, dimensional modeling, BI, and ML feature store workflow was developed.
+
+This repository builds on that foundation with a more mature project structure, broader automation, documentation, and testing. The two repositories are intentionally linked so the progression is clear.
 ---
 ## ⚠️ Disclaimer
 
