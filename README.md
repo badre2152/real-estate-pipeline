@@ -176,8 +176,8 @@ _cleanup_staging()   → cleanup
 ### 1. Clone repository
 
 ```bash
-git clone <https://github.com/badre2152/real-estate-pipeline.git>
-cd data_pipeline
+git clone https://github.com/badre2152/real-estate-pipeline.git
+cd real-estate-pipeline
 ```
 
 ### 2. Setup environment
