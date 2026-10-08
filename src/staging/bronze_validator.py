@@ -7,7 +7,7 @@ Design principles:
 - Hard rules  → raise BronzeValidationError  → pipeline ABORTS
 - Soft rules  → log warnings                 → pipeline CONTINUES
 - Every rule is explicit, named, and logged independently
-- No transformations happen here — pure read-only checks
+- No transformations happen here: pure read only checks
 
 Usage (called automatically inside run_staging):
     from src.staging.bronze_validator import validate_bronze
@@ -30,19 +30,19 @@ from src.config import (
 logger = get_logger("bronze_validator")
 
 
-# ── Custom exception ────────────────────────────────────────────────────
+# Custom exception
 
 class BronzeValidationError(Exception):
     """Raised when a hard validation rule fails. Stops the pipeline."""
 
 
-# ── Thresholds ──────────────────────────────────────────────────────────
+# Thresholds
 
 SOFT_MIN_FILL_PCT = 0.40       # warn if field fill-rate below 40%
 
 VALID_PRIX_TYPES = {"mensuel", "journalier", "journalier_suspect", "inconnu"}
 
-# Cities that are known scraper artefacts — never valid ville values
+# Cities that are known scraper artefacts: never valid ville values
 ARTEFACT_VILLES = {
     "COURS ET FORMATIONS",
     "Cours Et Formations",
@@ -61,14 +61,14 @@ _SCRAPED_AT_PATTERN = re.compile(
 )
 
 
-# ── Individual rule functions ───────────────────────────────────────────
+# Individual rule functions
 
 def _rule_min_records(records: list[dict]) -> None:
     """HARD: pipeline is useless with fewer than HARD_MIN_RECORDS records."""
     n = len(records)
     if n < HARD_MIN_RECORDS:
         raise BronzeValidationError(
-            f"Only {n} records in bronze file — minimum required is "
+            f"Only {n} records in bronze file: minimum required is "
             f"{HARD_MIN_RECORDS}. Possible bot-block or empty scrape."
         )
     logger.info(f"  ✅ record count: {n} (≥ {HARD_MIN_RECORDS})")
@@ -93,7 +93,7 @@ def _rule_required_keys(records: list[dict]) -> None:
 
 
 def _rule_no_error_field(records: list[dict]) -> None:
-    """SOFT: records with error != None were failed scrapes — warn about them."""
+    """SOFT: records with error != None were failed scrapes: warn about them."""
     error_records = [r for r in records if r.get("error") is not None]
     if error_records:
         logger.warning(
@@ -111,7 +111,7 @@ def _rule_prix_fill_rate(records: list[dict]) -> None:
     pct = len(valid) / len(records)
     if pct < HARD_MIN_PRIX_FILL_PCT:
         raise BronzeValidationError(
-            f"prix fill rate is {pct:.0%} — below hard minimum of "
+            f"prix fill rate is {pct:.0%}: below hard minimum of "
             f"{HARD_MIN_PRIX_FILL_PCT:.0%}. "
             "Scraper may have failed to extract prices."
         )
@@ -128,7 +128,7 @@ def _rule_ville_fill_rate(records: list[dict]) -> None:
     pct = len(valid) / len(records)
     if pct < HARD_MIN_VILLE_FILL_PCT:
         raise BronzeValidationError(
-            f"ville fill rate (excluding artefacts) is {pct:.0%} — "
+            f"ville fill rate (excluding artefacts) is {pct:.0%}: "
             f"below hard minimum of {HARD_MIN_VILLE_FILL_PCT:.0%}."
         )
     logger.info(
@@ -267,7 +267,7 @@ def _rule_soft_field_fill_rates(records: list[dict]) -> None:
     logger.info("  Secondary field fill rates:\n" + "\n".join(lines))
 
 
-# ── Public entry point ──────────────────────────────────────────────────
+# Public entry point
 
 def validate_bronze(records: list[dict], is_incremental: bool = False) -> dict:
     """
@@ -283,7 +283,7 @@ def validate_bronze(records: list[dict], is_incremental: bool = False) -> dict:
     warnings_count = 0
     hard_failures = 0
 
-    # ── HARD rules — any failure aborts the pipeline ────────────────────────
+    # HARD rules: any failure aborts the pipeline
     # In incremental mode, skip min_records check (few new records is normal)
     min_records_rule = [] if is_incremental else [("min_records", _rule_min_records)]
     hard_rules = min_records_rule + [
@@ -297,14 +297,14 @@ def validate_bronze(records: list[dict], is_incremental: bool = False) -> dict:
             rule_fn(records)
         except BronzeValidationError:
             hard_failures += 1
-            raise   # propagate immediately — stops pipeline
+            raise   # propagate immediately: stops pipeline
         except Exception as e:
             hard_failures += 1
             raise BronzeValidationError(
                 f"Unexpected error in hard rule '{rule_name}': {e}"
             ) from e
 
-    # ── SOFT rules — failures are logged as warnings only ───────────────────
+    # SOFT rules: failures are logged as warnings only
     soft_rules = [
         ("no_error_field", _rule_no_error_field),
         ("prix_format", _rule_prix_format),
@@ -323,7 +323,7 @@ def validate_bronze(records: list[dict], is_incremental: bool = False) -> dict:
             warnings_count += 1
             logger.warning(f"  ⚠️  soft rule '{rule_name}' raised: {e}")
 
-    # ── Summary ─────────────────────────────────────────────────────────────
+    # Summary
     n_valid = sum(1 for r in records if not r.get("error"))
     summary = {
         "total_records": len(records),
@@ -335,7 +335,7 @@ def validate_bronze(records: list[dict], is_incremental: bool = False) -> dict:
 
     logger.info(
         "\n  VALIDATION SUMMARY\n"
-        "  ─────────────────────────────\n"
+        "  ─\n"
         f"  Total records  : {summary['total_records']}\n"
         f"  Valid records  : {summary['valid_records']}\n"
         f"  Error records  : {summary['error_records']}\n"
