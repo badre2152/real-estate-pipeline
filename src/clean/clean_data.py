@@ -1,5 +1,5 @@
 """
-Clean layer — reads from staging.raw_annonces, applies full cleaning
+Clean layer: reads from staging.raw_annonces, applies full cleaning
 + feature engineering, writes to clean.annonces and data/silver/.
 """
 
@@ -18,7 +18,7 @@ from src.config import GRANDES_VILLES as _GRANDES_VILLES
 logger = get_logger("clean")
 SILVER_DIR = os.path.join(os.path.dirname(__file__), "../../data/silver")
 
-# ── DDL ─────────────────────────────────────────────────────────────────
+# DDL
 
 _DDL_SCHEMA = "CREATE SCHEMA IF NOT EXISTS clean;"
 
@@ -64,7 +64,7 @@ ON CONFLICT (lien) DO UPDATE SET
     loaded_at     = NOW()
 """
 
-# ── City / region reference ─────────────────────────────────────────────
+# City / region reference
 
 _VILLE_MAP = {
     "casablanca": "Casablanca", "casa": "Casablanca",
@@ -93,7 +93,7 @@ _VILLE_MAP = {
     "طنجة": "Tanger",
     "مراكش": "Marrakech",
     # FIX #32: Additional Arabic city names found in scraped data.
-    # These exist alongside French names — both must normalise to the same
+    # These exist alongside French names: both must normalise to the same
     # canonical form.
     "الدار البيضاء": "Casablanca",
     "الرباط": "Rabat",
@@ -179,15 +179,15 @@ _FRENCH_PREPOSITIONS = {
     "sur"}
 
 # FIX #2: حد أقصى للمساحة في سياق الإيجار السكني.
-# 800 م² هو سقف معقول — ما فوقه غالباً خطأ في الـ scraper أو إعلان تجاري.
+# 800 م² هو سقف معقول: ما فوقه غالباً خطأ في الـ scraper أو إعلان تجاري.
 SURFACE_MAX_RESIDENTIAL = 800  # م²
 
 # FIX #2: حد أدنى للسعر الشهري حسب نوع المدينة.
 # إذا كان السعر أقل من هذا الحد لمدينة كبيرة → على الأرجح إيجار يومي مصنّف خطأً.
 # المبدأ: إيجار أقل من 1,000 DH/شهر في Casablanca أو Rabat = مستحيل سوقياً.
-# DH — للمدن الكبيرة (Casablanca, Rabat, Tanger...)
+# DH: للمدن الكبيرة (Casablanca, Rabat, Tanger...)
 _PRIX_MENSUEL_MIN_GRANDE_VILLE = 1_000
-# DH — للمدن الصغيرة والمناطق السياحية (Saidia, Martil...)
+# DH: للمدن الصغيرة والمناطق السياحية (Saidia, Martil...)
 _PRIX_MENSUEL_MIN_PETITE_VILLE = 400
 
 # FIX #2: تصنيف الإيجار الشهري (مختلف كلياً عن تصنيف البيع)
@@ -199,8 +199,8 @@ _PRIX_SEUILS_LOCATION_MENSUEL = [
     (float("inf"), "Luxe"),
 ]
 
-# FIX #4: سلّم منفصل للإيجار اليومي — مختلف تماماً عن الشهري
-# 500 DH/ليلة ليس "Très Bas" — هو "Moyen" في سياق الإيجار اليومي
+# FIX #4: سلّم منفصل للإيجار اليومي: مختلف تماماً عن الشهري
+# 500 DH/ليلة ليس "Très Bas": هو "Moyen" في سياق الإيجار اليومي
 _PRIX_SEUILS_LOCATION_JOURNALIER = [
     (200, "Très Bas"),
     (400, "Bas"),
@@ -217,7 +217,7 @@ _PRIX_SEUILS_VENTE = [
 ]
 
 
-# ── Parsing helpers ─────────────────────────────────────────────────────
+# Parsing helpers
 
 def _extract_number(text) -> float | None:
     if not isinstance(text, str):
@@ -314,7 +314,7 @@ def _detect_daily_rental(
 
     if prix < threshold:
         logger.warning(
-            f"FIX #2 — Prix suspect détecté: {prix} DH/mois à {ville} "
+            f"FIX #2: Prix suspect détecté: {prix} DH/mois à {ville} "
             f"(seuil min = {threshold} DH) → reclassifié comme 'journalier_suspect'.")
         return "journalier_suspect"
 
@@ -337,7 +337,7 @@ def _categorize_prix(prix, prix_type: str = "mensuel") -> str:
     return "Luxe"
 
 
-# ── Pipeline ────────────────────────────────────────────────────────────
+# Pipeline
 
 def _fetch_staging(run_id: str | None = None) -> pd.DataFrame:
     """
@@ -398,7 +398,7 @@ def _apply_missing_value_strategy(df: pd.DataFrame) -> pd.DataFrame:
         if n_sale:
             logger.warning(
                 f"Missing-value strategy: dropped {n_sale} rows with suspiciously high "
-                f"rental price (> {RENTAL_MAX_DH:,} DH) — likely sale listings mis-scraped as rental.")  # noqa: E501
+                f"rental price (> {RENTAL_MAX_DH:,} DH): likely sale listings mis-scraped as rental.")  # noqa: E501
             df = df[~sale_mask]
     n1 = len(df)
     _ARTEFACT_VILLES = {
@@ -451,7 +451,7 @@ def _apply_missing_value_strategy(df: pd.DataFrame) -> pd.DataFrame:
     logger.info(f"Missing-value strategy applied. Remaining rows: {len(df)}")
 
     # FIX #3: حذف السجلات بمساحة غير منطقية في سياق الإيجار السكني.
-    # 800 م² سقف معقول — ما فوقه غالباً خطأ في الـ scraper أو إعلان
+    # 800 م² سقف معقول: ما فوقه غالباً خطأ في الـ scraper أو إعلان
     # تجاري/صناعي.
     if "surface_m2" in df.columns:
         n_before = len(df)
@@ -459,7 +459,7 @@ def _apply_missing_value_strategy(df: pd.DataFrame) -> pd.DataFrame:
             df["surface_m2"] > SURFACE_MAX_RESIDENTIAL)
         if oversized.sum():
             logger.warning(
-                f"FIX #3 — {oversized.sum()} سجل(ات) بمساحة > {SURFACE_MAX_RESIDENTIAL} م² "
+                f"FIX #3: {oversized.sum()} سجل(ات) بمساحة > {SURFACE_MAX_RESIDENTIAL} م² "
                 "تم وضع علامة عليها: "
                 + ", ".join(
                     f"{r['surface_m2']}م² ({r['ville']})"
@@ -468,11 +468,11 @@ def _apply_missing_value_strategy(df: pd.DataFrame) -> pd.DataFrame:
             )
             df = df[~oversized]
             logger.info(
-                f"FIX #3 — surface_m2 cap: حُذف {n_before - len(df)} سجل(ات) "
+                f"FIX #3: surface_m2 cap: حُذف {n_before - len(df)} سجل(ات) "
                 f"(surface_m2 > {SURFACE_MAX_RESIDENTIAL} م²)."
             )
 
-    # etage is now integer — no string replacement needed
+    # etage is now integer: no string replacement needed
 
     return df
 
@@ -488,7 +488,7 @@ def _clean(df: pd.DataFrame) -> pd.DataFrame:
     df["nb_salles_bain"] = df["nb_salles_bain"].apply(_clean_int)
 
     df["ville"] = df["ville"].apply(_standardize_ville)
-    # ✅ FIX: quartier ذكي — يحذف القيم بلا معنى ويحترم حروف الجر
+    # ✅ FIX: quartier ذكي: يحذف القيم بلا معنى ويحترم حروف الجر
     df["quartier"] = df["quartier"].fillna("").apply(_clean_quartier)
     if "titre" in df.columns:
         df["titre"] = df["titre"].fillna("").str.strip()
@@ -497,20 +497,20 @@ def _clean(df: pd.DataFrame) -> pd.DataFrame:
     # etage already processed above (0 → "Non précisé", others → string)
     df["scraped_at"] = pd.to_datetime(df["scraped_at"], errors="coerce")
 
-    # ✅ FIX: prix_type — أضف العمود إن لم يكن موجوداً (توافق مع staging القديمة)
+    # ✅ FIX: prix_type: أضف العمود إن لم يكن موجوداً (توافق مع staging القديمة)
     if "prix_type" not in df.columns:
         df["prix_type"] = "mensuel"
     else:
         df["prix_type"] = df["prix_type"].fillna("mensuel")
 
-    # FIX #2: كشف الإيجارات اليومية المصنّفة خطأً كشهرية — يجب أن يكون بعد
+    # FIX #2: كشف الإيجارات اليومية المصنّفة خطأً كشهرية: يجب أن يكون بعد
     # _clean_prix و_standardize_ville حتى تكون القيم الرقمية والمدن جاهزة.
     df["prix_type"] = df.apply(lambda row: _detect_daily_rental(
         row["prix"], row["prix_type"], row["ville"]), axis=1, )
     n_suspect = (df["prix_type"] == "journalier_suspect").sum()
     if n_suspect:
         logger.warning(
-            f"FIX #2 — {n_suspect} سجل(ات) أُعيد تصنيفها كـ 'journalier_suspect' "
+            f"FIX #2: {n_suspect} سجل(ات) أُعيد تصنيفها كـ 'journalier_suspect' "
             "بسبب سعر شهري غير منطقي.")
 
     df = _apply_missing_value_strategy(df)
@@ -520,7 +520,7 @@ def _clean(df: pd.DataFrame) -> pd.DataFrame:
         n_valid = df[col].notna().sum()
         if n_valid < MIN_ROWS_FOR_OUTLIER:
             logger.warning(
-                f"Outlier filter [{col}] skipped — only {n_valid} non-null rows "
+                f"Outlier filter [{col}] skipped: only {n_valid} non null rows "
                 f"(minimum required: {MIN_ROWS_FOR_OUTLIER}). "
                 "Collect more data before relying on quantile filtering.")
             continue
@@ -537,7 +537,7 @@ def _clean(df: pd.DataFrame) -> pd.DataFrame:
         np.nan,
     )
 
-    # FIX #3: Log surface_m2 fill rate — prix_par_m2 is only as good as
+    # FIX #3: Log surface_m2 fill rate: prix_par_m2 is only as good as
     # surface coverage.
     n_total = len(df)
     n_surface = df["surface_m2"].notna().sum()
@@ -547,11 +547,11 @@ def _clean(df: pd.DataFrame) -> pd.DataFrame:
     surface_status = "✅" if surface_pct >= 60 else (
         "⚠️" if surface_pct >= 30 else "❌")
     logger.info(
-        f"FIX #3 — surface_m2 fill: {surface_status} {n_surface}/{n_total} ({surface_pct:.1f}%) "
+        f"FIX #3: surface_m2 fill: {surface_status} {n_surface}/{n_total} ({surface_pct:.1f}%) "
         f"→ prix_par_m2 computable for {n_ppm2}/{n_total} rows ({ppm2_pct:.1f}%)")
     if surface_pct < 30:
         logger.warning(
-            "FIX #3 — surface_m2 fill rate is critically low (<30%). "
+            "FIX #3: surface_m2 fill rate is critically low (<30%). "
             "prix_par_m2 will be unreliable for BI and ML. "
             "Consider improving surface extraction in the scraper."
         )
@@ -582,9 +582,9 @@ def _ml_readiness_report(df: pd.DataFrame) -> None:
     ]
     n = len(df)
     if n == 0:
-        logger.warning("ML Readiness: 0 rows — cannot compute.")
+        logger.warning("ML Readiness: 0 rows: cannot compute.")
         return
-    lines = [f"\n🤖 ML READINESS REPORT — {n} rows"]
+    lines = [f"\n🤖 ML READINESS REPORT: {n} rows"]
     for col in feature_cols:
         if col not in df.columns:
             lines.append(f"  ❓ {col:<22}: column not found")
@@ -604,7 +604,7 @@ def _save_silver(df: pd.DataFrame) -> None:
       data/silver/YYYY/MM/DD/avito_clean_<ts>.parquet
     """
     if df.empty:
-        logger.warning("Silver: DataFrame is empty — nothing to save.")
+        logger.warning("Silver: DataFrame is empty: nothing to save.")
         return
 
     ts = datetime.now(tz=timezone.utc).strftime("%Y%m%d_%H%M%S")
@@ -631,7 +631,7 @@ def _save_silver(df: pd.DataFrame) -> None:
 def _load_to_db(df: pd.DataFrame) -> None:
     execute_query(_DDL_SCHEMA)
     execute_query(_DDL_TABLE)
-    # FIX #14: Migrations removed — handled centrally by run_all_migrations()
+    # FIX #14: Migrations removed: handled centrally by run_all_migrations()
     # in pipeline.py.
 
     cols = [
@@ -669,13 +669,13 @@ def _load_to_db(df: pd.DataFrame) -> None:
 def run_clean(run_id: str | None = None) -> pd.DataFrame:
     """
     FIX #15: Accepts run_id to filter staging data by the current pipeline run.
-    When provided, only rows with matching run_id are cleaned — preventing
+    When provided, only rows with matching run_id are cleaned: preventing
     data mixing from previous partial/failed runs.
     """
     logger.info("=== Clean layer started ===")
     df_raw = _fetch_staging(run_id=run_id)
 
-    # ── Pre-clean validation ─────────────────────────────────────────────────
+    # Pre-clean validation
     # Hard failures raise CleanValidationError and abort the pipeline.
     try:
         validate_pre_clean(df_raw)
@@ -686,8 +686,8 @@ def run_clean(run_id: str | None = None) -> pd.DataFrame:
     n_staging = len(df_raw)
     df_clean = _clean(df_raw)
 
-    # ── Post-clean validation ────────────────────────────────────────────────
-    # Runs after transformation — gates the DB write and silver export.
+    # Post-clean validation
+    # Runs after transformation: gates the DB write and silver export.
     try:
         validate_post_clean(df_clean, n_staging)
     except CleanValidationError as e:
