@@ -1,5 +1,5 @@
 """
-db.py — Database utilities with connection pooling.
+db.py: Database utilities with connection pooling.
 
 FIX #28: fetch_all now consistently uses `with conn` context manager.
 FIX #53: Connection pool (ThreadedConnectionPool) replaces repeated open/close.
@@ -17,7 +17,7 @@ from src.config import DB_POOL_MIN, DB_POOL_MAX
 load_dotenv()
 logger = get_logger("db")
 
-# ── Connection Pool ──────────────────────────────────────────────────────────
+# Connection Pool
 _pool: pg_pool.ThreadedConnectionPool | None = None
 _pool_lock = threading.Lock()
 
@@ -61,7 +61,7 @@ def close_pool() -> None:
     _pool = None
 
 
-# ── Query helpers ────────────────────────────────────────────────────────────
+# Query helpers
 
 def execute_query(query: str, params=None) -> None:
     conn = get_connection()
@@ -79,7 +79,7 @@ def execute_query(query: str, params=None) -> None:
 
 def bulk_insert(query: str, rows: list) -> None:
     if not rows:
-        logger.warning("bulk_insert called with empty rows — skipping.")
+        logger.warning("bulk_insert called with empty rows: skipping.")
         return
     conn = get_connection()
     try:
