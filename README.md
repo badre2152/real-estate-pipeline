@@ -14,7 +14,6 @@ This repository is the evolved implementation of my Avito real estate data engin
 The earlier version is preserved in [real-estate-data-pipeline](https://github.com/badre2152/real-estate-data-pipeline), where the initial Selenium, PostgreSQL, dimensional modeling, BI, and ML feature store workflow was developed.
 
 This repository builds on that foundation with a more mature project structure, broader automation, documentation, and testing. The two repositories are intentionally linked so the progression is clear.
----
 ## ⚠️ Disclaimer
 
 This project is for educational purposes only.  
@@ -25,18 +24,16 @@ and all the data will not be shared and will be deleted within 2 weeks
 
 ## 📄 License
 This project is licensed under the MIT License.
----
 
 ## 🎯 Project Overview
 
-This project simulates a **production-grade data pipeline**:
+This project simulates a **production grade data pipeline**:
 
 * Extracts real estate listings via web scraping
 * Processes and cleans raw data
 * Loads structured data into a PostgreSQL Data Warehouse
 * Serves analytics (BI) and Machine Learning use cases
 
----
 
 ## 🧱 Architecture
 
@@ -60,7 +57,6 @@ Power BI Dashboard
 ML Feature Store (OBT)
 ```
 
----
 
 ## 🛠️ Tech Stack
 
@@ -71,21 +67,19 @@ ML Feature Store (OBT)
 * **Docker** → Environment orchestration
 * **Streamlit / Power BI** → Data visualization
 
----
 
 ## 📊 Business Use Cases
 
 * Track real estate price trends across cities
 * Compare price per m² by location
-* Identify high-value investment zones
+* Identify high value investment zones
 * Build ML models for price prediction
 
----
 
 ## 🗂️ Project Structure
 
 ```
-data_pipeline/
+real-estate-pipeline/
 ├── data/
 │   ├── bronze/        # Raw JSON data
 │   ├── silver/        # Cleaned CSV data
@@ -97,17 +91,16 @@ data_pipeline/
 │   ├── staging/
 │   ├── clean/
 │   ├── warehouse/
-|   ├── tests/
+│   ├── tests/
 │   ├── utils/
 │   └── pipeline.py
 ├── docs/
 ├── docker-compose.yml
 ├── Dockerfile
 ├── requirements.txt
-└── .env
+└── .env.example
 ```
 
----
 
 ## 🏗️ Data Warehouse Design
 
@@ -138,15 +131,10 @@ feature_store
 → nb_chambres
 → prix_par_m2
 → age_bien 
-+ > ⚠️ **Limitation:** `age_bien` is derived from `annee_construction`.
-
-+ > This field has **0% fill rate** — Avito does not expose it in the listing HTML.
-
-+ > ML models should not rely on `age_bien` until a data source is found.
+> ⚠️ **Limitation:** `age_bien` is derived from `annee_construction`. This field has **0% fill rate** because Avito does not expose it in the listing HTML. ML models should not rely on `age_bien` until a data source is found.
 → categorie_prix
 ```
 
----
 
 ## 🔄 Pipeline Workflow
 
@@ -159,7 +147,6 @@ run_ml_schema()      → ml_schema.feature_store
 _cleanup_staging()   → cleanup
 ```
 
----
 
 ## ⚙️ Engineering Highlights
 
@@ -169,7 +156,6 @@ _cleanup_staging()   → cleanup
 * Centralized logging system
 * Data validation & type handling
 
----
 
 ## 🐳 Setup & Installation
 
@@ -211,7 +197,6 @@ DB_PASSWORD=change_me_database_password
 
 For Docker execution, Compose overrides only `DB_HOST` and `DB_PORT` inside the pipeline container to use `postgres:5432`. This keeps the same `.env` usable for host tools and local Python execution.
 
----
 
 ## 🚀 Run the Pipeline
 
@@ -228,7 +213,6 @@ docker compose up postgres -d
 python src/pipeline.py
 ```
 
----
 
 ## 📊 Dashboard Preview
 
@@ -236,7 +220,6 @@ python src/pipeline.py
 
 ![Dashboard](docs/dashboard.png)
 
----
 
 ## 🔗 Related Projects
 
@@ -244,8 +227,8 @@ Ce pipeline alimente directement le dashboard BI suivant :
 
 | Repo | Rôle | Lien |
 |------|------|------|
-| ⚙️ **real-estate-pipeline** *(ce repo)* | Upstream — Scraping → ETL → PostgreSQL | — |
-| 📊 **avito-dashboards-and-repports** | Downstream — Power BI Dashboards & Reports | [badre2152/avito-dashboards-and-repports](https://github.com/badre2152/avito-dashboards-and-repports) |
+| ⚙️ **real-estate-pipeline** *(ce repo)* | Upstream: Scraping → ETL → PostgreSQL | Current repository |
+| 📊 **avito-dashboards-and-repports** | Downstream: Power BI Dashboards & Reports | [badre2152/avito-dashboards-and-repports](https://github.com/badre2152/avito-dashboards-and-repports) |
 
 ```
 real-estate-pipeline
@@ -255,7 +238,6 @@ real-estate-pipeline
 
 > The dashboard repo consumes the `bi_schema` tables produced by this pipeline.
 
----
 
 ## 🔌 Power BI Integration
 
@@ -265,7 +247,6 @@ real-estate-pipeline
 2. Import `bi_schema` tables
 3. Use relationships for analysis
 
----
 
 ## 🧪 Testing (Optional)
 
@@ -273,7 +254,6 @@ real-estate-pipeline
 pytest
 ```
 
----
 
 ## 🛡️ Data Ethics & Compliance
 
@@ -282,7 +262,6 @@ pytest
 * Respectful scraping (rate limiting)
 * Full pipeline logging
 
----
 
 ## 🧠 Why This Project Stands Out
 
@@ -290,15 +269,13 @@ pytest
 * Separates **BI and ML workloads**
 * Uses **Star Schema** for analytics
 * Includes **Feature Store for ML**
-* Designed like a real-world data platform
+* Designed like a real world data platform
 
----
 
 ## 👤 Author
 
-**BRAHIM BADRE** – Data Engineering & Analytics Enthusiast
+**BRAHIM BADRE**, Data Engineering & Analytics
 
----
 
 ## ⭐ Support
 
