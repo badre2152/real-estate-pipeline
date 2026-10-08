@@ -6,7 +6,7 @@ on:
   workflow_dispatch:  # allow manual run from GitHub UI
 
 jobs:
-  # ── 1. Lint ────────────────────────────────────────────────────────────────
+  # 1. Lint
   lint:
     name: Lint & Type Check
     runs-on: ubuntu-latest
@@ -27,7 +27,7 @@ jobs:
       - name: Run mypy
         run: mypy src/ --config-file=mypy.ini --ignore-missing-imports
 
-  # ── 2. Unit & Integration Tests ───────────────────────────────────────────
+  # 2. Unit & Integration Tests
   tests:
     name: Tests (pytest)
     runs-on: ubuntu-latest
@@ -95,7 +95,7 @@ jobs:
           name: coverage-report
           path: coverage.xml
 
-  # ── 3. Docker Build Check ─────────────────────────────────────────────────
+  # 3. Docker Build Check
   docker:
     name: Docker Build
     runs-on: ubuntu-latest
