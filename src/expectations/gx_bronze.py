@@ -1,5 +1,5 @@
 """
-Great Expectations — Bronze Layer Suite
+Great Expectations: Bronze Layer Suite
 =========================================
 Validates raw scraped records (bronze JSON) using GX expectations.
 
@@ -23,7 +23,7 @@ except ImportError:
     GX_AVAILABLE = False
 
 
-# ── Paths ───────────────────────────────────────────────────────────────
+# Paths
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 GX_ROOT = PROJECT_ROOT / "gx"
@@ -32,15 +32,15 @@ DS_NAME = "bronze_pandas_ds"
 ASSET_NAME = "bronze_asset"
 
 
-# ── Context ─────────────────────────────────────────────────────────────
+# Context
 
 def _get_context():
-    # Use ephemeral context — nothing is written to disk, so no "suite already
+    # Use ephemeral context: nothing is written to disk, so no "suite already
     # exists" errors when the pipeline restarts inside the same container.
     return gx.get_context(mode="ephemeral")
 
 
-# ── Suite builder (GX 0.18+ API) ────────────────────────────────────────
+# Suite builder (GX 0.18+ API)
 
 def _build_bronze_suite(context) -> None:
     """Create or overwrite the bronze expectation suite using GX 0.18+ API."""
@@ -57,7 +57,7 @@ def _build_bronze_suite(context) -> None:
     # GX infers column types and validates expectations against actual data shapes.
     # An empty DataFrame causes GX to treat every column as object dtype,
     # making numeric expectations (expect_column_values_to_be_between) trivially pass
-    # on nulls — masking real data quality issues at runtime.
+    # on nulls: masking real data quality issues at runtime.
     dummy_df = pd.DataFrame([
         {
             "titre": "Appartement 3 chambres à louer - Casablanca",
@@ -111,11 +111,11 @@ def _build_bronze_suite(context) -> None:
         expectation_suite=suite,
     )
 
-    # ── 1. Schema ───────────────────────────────────────────────────────────
+    # 1. Schema
     for col in ["titre", "prix", "ville", "lien", "scraped_at"]:
         validator.expect_column_to_exist(col)
 
-    # ── 2. Completeness ─────────────────────────────────────────────────────
+    # 2. Completeness
     validator.expect_column_values_to_not_be_null(
         "prix", mostly=GX_PRIX_MOSTLY)
     validator.expect_column_values_to_not_be_null(
@@ -123,7 +123,7 @@ def _build_bronze_suite(context) -> None:
     validator.expect_column_values_to_not_be_null("titre", mostly=0.80)
     validator.expect_column_values_to_not_be_null("scraped_at", mostly=1.0)
 
-    # ── 3. Value validity ───────────────────────────────────────────────────
+    # 3. Value validity
     validator.expect_column_values_to_be_in_set(
         "prix_type",
         value_set=["mensuel", "journalier", "inconnu"],
@@ -134,16 +134,16 @@ def _build_bronze_suite(context) -> None:
     # and GX raises errors when bounds don't match column types or when both are None.
     # Fill-rate checks above are sufficient for bronze layer validation.
 
-    # ── 4. Format ───────────────────────────────────────────────────────────
+    # 4. Format
     validator.expect_column_values_to_match_regex(
         "lien", regex=r"^https://www\.avito\.ma/", mostly=0.95)
     validator.expect_column_values_to_match_regex(
         "scraped_at", regex=r"^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}", mostly=1.0)
 
-    # ── 5. Uniqueness ───────────────────────────────────────────────────────
+    # 5. Uniqueness
     validator.expect_column_values_to_be_unique("lien")
 
-    # ── 6. Table-level ──────────────────────────────────────────────────────
+    # 6. Table-level
     validator.expect_table_row_count_to_be_between(
         min_value=GX_MIN_ROWS, max_value=GX_MAX_ROWS)
     validator.expect_table_columns_to_match_set(
@@ -156,7 +156,7 @@ def _build_bronze_suite(context) -> None:
     )
 
 
-# ── Checkpoint runner ───────────────────────────────────────────────────
+# Checkpoint runner
 
 def run_bronze_checkpoint(bronze_json_path: str) -> bool:
     """
@@ -241,7 +241,7 @@ def _print_summary(filename, evaluated, successful, failed, passed):
     status = "✅ PASSED" if passed else "❌ FAILED"
     print(
         f"\n{'='*50}\n"
-        f"  GX BRONZE CHECKPOINT — {status}\n"
+        f"  GX BRONZE CHECKPOINT: {status}\n"
         f"  File      : {filename}\n"
         f"  Evaluated : {evaluated}\n"
         f"  Passed    : {successful}\n"
