@@ -74,7 +74,6 @@ ARTEFACT_VILLES = {
 CURRENT_YEAR = datetime.now().year
 
 
-
 # PRE-CLEAN RULES  (on staging DataFrame)
 
 
@@ -154,7 +153,6 @@ def _pre_artefact_villes(df: pd.DataFrame) -> None:
         )
     else:
         logger.info("  ✅ no artefact villes in staging")
-
 
 
 # POST-CLEAN RULES  (on cleaned DataFrame)
@@ -430,7 +428,6 @@ def _post_fill_rate_summary(df: pd.DataFrame) -> None:
         status = "✅" if pct >= 80 else ("⚠️" if pct >= 40 else "❌")
         lines.append(f"    {status} {col:<22}: {filled}/{n} ({pct:.0f}%)")
     logger.info("\n".join(lines))
-
 
 
 # PUBLIC ENTRY POINTS
