@@ -193,13 +193,23 @@ Check that Great Expectations is installed (required to run the pipeline)
 
 ### 3. Configure environment
 
+Create a local `.env` file from the tracked template:
+
+```bash
+cp .env.example .env
 ```
-DB_HOST=
-DB_PORT=
-DB_NAME=
-DB_USER=
-DB_PASSWORD=
+
+Then replace `change_me_database_password` with your PostgreSQL password.
+
+```dotenv
+DB_HOST=localhost
+DB_PORT=5433
+DB_NAME=avito_db
+DB_USER=postgres
+DB_PASSWORD=change_me_database_password
 ```
+
+For Docker execution, Compose overrides only `DB_HOST` and `DB_PORT` inside the pipeline container to use `postgres:5432`. This keeps the same `.env` usable for host tools and local Python execution.
 
 ---
 
@@ -208,13 +218,13 @@ DB_PASSWORD=
 ### Using Docker
 
 ```bash
-docker-compose up --build
+docker compose up --build
 ```
 
 ### Local execution
 
 ```bash
-docker-compose up postgres -d
+docker compose up postgres -d
 python src/pipeline.py
 ```
 
