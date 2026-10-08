@@ -2,7 +2,7 @@ import os
 from typing import Any
 """
 ML Schema: One Big Table (OBT) / Feature Store.
-All features in one flat table. No encoding, scaling, or SMOTE here —
+All features in one flat table. No encoding, scaling, or SMOTE here.
 those transformations happen in the ML notebook after extraction.
 
 FIX: DDL مفصول في قائمة بدلاً من split(";") الهش
