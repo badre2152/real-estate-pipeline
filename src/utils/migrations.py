@@ -1,19 +1,19 @@
 """
-migrations.py — Centralised DDL migration registry.
+migrations.py: Centralised DDL migration registry.
 
 FIX #14: Instead of _DDL_MIGRATIONS scattered across bi_schema.py,
 ml_schema.py, and clean_data.py, all migrations are defined here and
 applied in order via run_all_migrations().
 
 Each migration has a unique name. Applied migrations are tracked in the
-schema_migrations table so each one only ever runs once — even if the
+schema_migrations table so each one only ever runs once: even if the
 pipeline is restarted.
 
 FIX #SCHEMA: Added bootstrap migrations (boot_*) that create all schemas
 and base tables before any ALTER TABLE migration runs. Previously,
-clean_001–clean_007 would fail on a fresh DB because clean.annonces
+clean_001 to clean_007 would fail on a fresh DB because clean.annonces
 was only created later inside _load_to_db() (called during the CLEAN
-pipeline step — well after MIGRATIONS runs). The boot_* entries are
+pipeline step: well after MIGRATIONS runs). The boot_* entries are
 idempotent (IF NOT EXISTS) and safe to run repeatedly.
 """
 
@@ -22,7 +22,7 @@ from src.utils.logger import get_logger
 
 logger = get_logger("migrations")
 
-# ── Migration tracking table ─────────────────────────────────────────────────
+# Migration tracking table
 
 _DDL_TRACKING = """
 CREATE TABLE IF NOT EXISTS public.schema_migrations (
@@ -31,12 +31,12 @@ CREATE TABLE IF NOT EXISTS public.schema_migrations (
 );
 """
 
-# ── Migration registry ───────────────────────────────────────────────────────
+# Migration registry
 # Order matters: each entry is (name, sql).
-# ADD new migrations at the END — never reorder or delete existing entries.
+# ADD new migrations at the END: never reorder or delete existing entries.
 
 MIGRATIONS: list[tuple[str, str]] = [
-    # ── bootstrap: create schemas + base tables ────────────────────────────
+    # bootstrap: create schemas + base tables
     # These run FIRST so every subsequent ALTER TABLE has a table to target.
     # All statements are fully idempotent (IF NOT EXISTS).
     ("boot_001_clean_schema",
@@ -147,8 +147,8 @@ MIGRATIONS: list[tuple[str, str]] = [
 
     # FIX: Create staging.raw_annonces early (in migrations) so that
     # staging_001_unique_lien can safely add the UNIQUE constraint on lien.
-    # Previously the table was only created inside run_staging() — AFTER
-    # migrations ran — so the constraint was never applied and ON CONFLICT
+    # Previously the table was only created inside run_staging(): AFTER
+    # migrations ran: so the constraint was never applied and ON CONFLICT
     # (lien) always failed with "no unique constraint matching specification".
     ("boot_011_staging_raw_annonces",
      """CREATE TABLE IF NOT EXISTS staging.raw_annonces (
@@ -169,7 +169,7 @@ MIGRATIONS: list[tuple[str, str]] = [
          loaded_at           TIMESTAMP DEFAULT NOW()
      );"""),
 
-    # ── clean schema ───────────────────────────────────────────────────────
+    # clean schema
     ("clean_001_add_region_label",
      "ALTER TABLE clean.annonces ADD COLUMN IF NOT EXISTS region_label TEXT;"),
     ("clean_002_unique_lien",
@@ -193,7 +193,7 @@ MIGRATIONS: list[tuple[str, str]] = [
     ("clean_007_add_prix_type",
      "ALTER TABLE clean.annonces ADD COLUMN IF NOT EXISTS prix_type TEXT DEFAULT 'mensuel';"),
 
-    # ── staging schema ─────────────────────────────────────────────────────
+    # staging schema
     # FIX: Table is now guaranteed to exist (boot_011_staging_raw_annonces runs first),
     # so we can safely add the UNIQUE constraint here without the IF EXISTS table check.
     ("staging_001_unique_lien",
@@ -207,7 +207,7 @@ MIGRATIONS: list[tuple[str, str]] = [
          END IF;
      END $$;"""),
 
-    # ── bi_schema ──────────────────────────────────────────────────────────
+    # bi_schema
     ("bi_001_add_region_label",
      "ALTER TABLE bi_schema.dim_localisation ADD COLUMN IF NOT EXISTS region_label TEXT NOT NULL DEFAULT 'Autre';"),
     ("bi_002_add_is_grande_ville",
@@ -227,16 +227,16 @@ MIGRATIONS: list[tuple[str, str]] = [
          END IF;
      END $$;"""),
 
-    # ── ml_schema ──────────────────────────────────────────────────────────
+    # ml_schema
     ("ml_001_add_prix_type",
      "ALTER TABLE ml_schema.feature_store ADD COLUMN IF NOT EXISTS prix_type TEXT DEFAULT 'mensuel';"),
 
-    # ── FIX #Q1: quartier_known column for dim_localisation ────────────────
+    # FIX #Q1: quartier_known column for dim_localisation
     ("bi_006_add_quartier_known",
      "ALTER TABLE bi_schema.dim_localisation ADD COLUMN IF NOT EXISTS quartier_known BOOLEAN NOT NULL DEFAULT FALSE;"),
 
-    # ── FIX #Q2: drop annee_construction and age_bien from existing DBs ────
-    # These columns are always NULL in Avito data — dropping them keeps schemas clean.
+    # FIX #Q2: drop annee_construction and age_bien from existing DBs
+    # These columns are always NULL in Avito data: dropping them keeps schemas clean.
     # IF EXISTS guards make these safe to run on fresh DBs too.
     ("clean_008_drop_annee_construction",
      "ALTER TABLE clean.annonces DROP COLUMN IF EXISTS annee_construction;"),
@@ -255,7 +255,7 @@ MIGRATIONS: list[tuple[str, str]] = [
 ]
 
 
-# ── Runner ───────────────────────────────────────────────────────────────────
+# Runner
 
 def run_all_migrations() -> None:
     """Apply all pending migrations in order. Each migration runs at most once."""
