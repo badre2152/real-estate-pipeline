@@ -335,7 +335,7 @@ def validate_bronze(records: list[dict], is_incremental: bool = False) -> dict:
 
     logger.info(
         "\n  VALIDATION SUMMARY\n"
-        "  ─\n"
+        "\n"
         f"  Total records  : {summary['total_records']}\n"
         f"  Valid records  : {summary['valid_records']}\n"
         f"  Error records  : {summary['error_records']}\n"
