@@ -7,14 +7,12 @@ to clean.annonces or data/silver/.
 Two checkpoints are provided:
 
   1. validate_pre_clean(df_staging)
-     ─ Called on the raw staging DataFrame before _clean() runs.
-     ─ Checks that staging data is suitable for transformation.
-
+     Called on the raw staging DataFrame before _clean() runs.
+     Checks that staging data is suitable for transformation.
   2. validate_post_clean(df_clean)
-     ─ Called on the cleaned DataFrame after _clean() runs.
-     ─ Checks that transformations produced correct, consistent output.
-     ─ This is the main gate before any data reaches the DB or silver CSV.
-
+     Called on the cleaned DataFrame after _clean() runs.
+     Checks that transformations produced correct, consistent output.
+     This is the main gate before any data reaches the DB or silver CSV.
 Design:
   Hard rules  → raise CleanValidationError  → pipeline ABORTS
   Soft rules  → log warnings                → pipeline CONTINUES
@@ -535,7 +533,7 @@ def validate_post_clean(df_clean: pd.DataFrame, n_staging: int) -> dict:
 
     logger.info(
         "\n  POST-CLEAN VALIDATION SUMMARY\n"
-        "  ─\n"
+        "\n"
         f"  Staging rows   : {summary['staging_rows']}\n"
         f"  Clean rows     : {summary['clean_rows']}\n"
         f"  Drop rate      : {summary['drop_rate']:.0%}\n"
