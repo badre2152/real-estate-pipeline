@@ -32,10 +32,10 @@ from src.config import (
 logger = get_logger("scraper")
 BRONZE_DIR = os.path.join(os.path.dirname(__file__), "../../data/bronze")
 
-# Incremental scraping — stop after this many consecutive known listings
+# Incremental scraping: stop after this many consecutive known listings
 _INCREMENTAL_STOP_AFTER = 5
 
-# ✅ FIX: كلمات مفتاحية محدّثة — تضيف studio/louer، تحذف terrain/ferme
+# ✅ FIX: كلمات مفتاحية محدّثة: تضيف studio/louer، تحذف terrain/ferme
 IMMOBILIER_KEYWORDS = [
     "appartement", "appartements",
     "maison", "maisons",
@@ -60,14 +60,14 @@ LOCATION_FALSE_POSITIVES = [
     "référence", "ref", "code",
 ]
 
-# ✅ FIX: مفردات تدل على سعر يومي — يجب الإشارة إليها في السجل
+# ✅ FIX: مفردات تدل على سعر يومي: يجب الإشارة إليها في السجل
 DAILY_RENTAL_KEYWORDS = [
     "jour", "journée", "quotidien", "quotidiennement",
     "vacances", "nuit", "nuitée", "week-end",
 ]
 
 
-# ── Driver ──────────────────────────────────────────────────────────────
+# Driver
 
 def _build_driver() -> webdriver.Chrome:
     options = Options()
@@ -100,7 +100,7 @@ def _build_driver() -> webdriver.Chrome:
     return driver
 
 
-# ── Helpers ─────────────────────────────────────────────────────────────
+# Helpers
 
 def _safe_text(driver, css: str, default: str = "") -> str:
     try:
@@ -162,7 +162,7 @@ def _scrape_listing(driver, url: str) -> dict:
             EC.presence_of_element_located((By.CSS_SELECTOR, "h1"))
         )
 
-        # ── Titre ──────────────────────────────────────────────────────────
+        # Titre
         titre = _safe_text(driver, "h1")
         # ✅ FIX: حذف كود الوكالة من العنوان (مثال: RBA-YA-1053 - Appartement...)
         titre = re.sub(
@@ -177,7 +177,7 @@ def _scrape_listing(driver, url: str) -> dict:
             record["prix_type"] = "journalier"
             logger.warning(f"⚠️ Possible daily rental: {titre[:60]}")
 
-        # ── Prix ───────────────────────────────────────────────────────────
+        # Prix
         # Strategy: look for a span/p that contains digits + "DH".
         # Accept if it also contains "mois" (monthly price) or not.
         # Prefer shorter text (avoids capturing full sentences).
@@ -193,7 +193,7 @@ def _scrape_listing(driver, url: str) -> dict:
         if prix_candidates:
             record["prix"] = min(prix_candidates, key=len)
 
-        # ── Localisation ───────────────────────────────────────────────────
+        # Localisation
         # ✅ FIX: قائمة موسّعة + تحقق مشدّد من الجانبين
         for el in driver.find_elements(By.CSS_SELECTOR, "span, p, a"):
             try:
@@ -215,7 +215,7 @@ def _scrape_listing(driver, url: str) -> dict:
                             record["ville"] = parts[1]
                             break
 
-        # ── Attributs ──────────────────────────────────────────────────────
+        # Attributs
         for el in driver.find_elements(By.CSS_SELECTOR, "span, div, p"):
             try:
                 txt = el.text.strip()
@@ -260,7 +260,7 @@ def _scrape_listing(driver, url: str) -> dict:
     return record
 
 
-# ── Bronze persistence ──────────────────────────────────────────────────
+# Bronze persistence
 
 def _save_bronze(records: list[dict]) -> str:
     from datetime import timezone
@@ -276,7 +276,7 @@ def _save_bronze(records: list[dict]) -> str:
     return path
 
 
-# ── Fill rate monitor ───────────────────────────────────────────────────
+# Fill rate monitor
 
 def _log_fill_rates(records: list[dict]) -> None:
     if not records:
@@ -286,7 +286,7 @@ def _log_fill_rates(records: list[dict]) -> None:
         "prix", "ville", "quartier", "surface",
         "nb_chambres", "nb_salles_bain", "annee_construction",
     ]
-    lines = [f"\n📊 PAGE STATS — {total} records"]
+    lines = [f"\n📊 PAGE STATS: {total} records"]
     for field in key_fields:
         filled = sum(1 for r in records if r.get(field) not in ("", None))
         pct = (filled / total) * 100
@@ -298,10 +298,10 @@ def _log_fill_rates(records: list[dict]) -> None:
     daily_count = sum(1 for r in records if r.get("prix_type") == "journalier")
     if daily_count:
         logger.warning(
-            f"⚠️ {daily_count}/{total} إعلانات إيجار يومي — راجعها يدوياً")
+            f"⚠️ {daily_count}/{total} إعلانات إيجار يومي: راجعها يدوياً")
 
 
-# ── Validity guard ──────────────────────────────────────────────────────
+# Validity guard
 
 def _is_valid_record(record: dict) -> bool:
     """
@@ -311,7 +311,7 @@ def _is_valid_record(record: dict) -> bool:
     return bool(record.get("prix")) and bool(record.get("ville"))
 
 
-# ── Incremental scraping ────────────────────────────────────────────────
+# Incremental scraping
 
 def _get_known_liens() -> set[str]:
     """
@@ -324,7 +324,7 @@ def _get_known_liens() -> set[str]:
         logger.info(f"Incremental mode: {len(known)} liens already in DB.")
         return known
     except Exception as e:
-        logger.warning(f"Could not fetch known liens (fresh DB?): {e} — running full scrape.")
+        logger.warning(f"Could not fetch known liens (fresh DB?): {e}: running full scrape.")
         return set()
 
 
@@ -333,7 +333,7 @@ def _is_already_scraped(url: str, known_liens: set[str]) -> bool:
     return url in known_liens
 
 
-# ── Entry point ─────────────────────────────────────────────────────────
+# Entry point
 
 def run_scraper(max_pages: int = MAX_PAGES) -> list[dict]:
     logger.info("=== Scraper started ===")
@@ -341,7 +341,7 @@ def run_scraper(max_pages: int = MAX_PAGES) -> list[dict]:
     all_records: list[dict] = []
     skipped = 0
 
-    # ── Incremental: load known liens from DB once ─────────────────────
+    # Incremental: load known liens from DB once
     known_liens = _get_known_liens()
     consecutive_known = 0
     incremental_stopped = False
@@ -349,7 +349,7 @@ def run_scraper(max_pages: int = MAX_PAGES) -> list[dict]:
     try:
         for page_num in range(1, max_pages + 1):
             page_url = f"{BASE_URL}?page={page_num}"
-            logger.info(f"── Results page {page_num}/{max_pages}")
+            logger.info(f" Results page {page_num}/{max_pages}")
 
             listing_urls = []
             for attempt in range(3):
@@ -361,12 +361,12 @@ def run_scraper(max_pages: int = MAX_PAGES) -> list[dict]:
                 time.sleep(SCRAPER_TIMEOUT)
 
             if not listing_urls:
-                logger.warning("No listings found — stopping pagination.")
+                logger.warning("No listings found: stopping pagination.")
                 break
 
             for url in listing_urls:
 
-                # ── Incremental check ──────────────────────────────────
+                # Incremental check
                 if known_liens and _is_already_scraped(url, known_liens):
                     consecutive_known += 1
                     logger.debug(
@@ -376,7 +376,7 @@ def run_scraper(max_pages: int = MAX_PAGES) -> list[dict]:
                     if consecutive_known >= _INCREMENTAL_STOP_AFTER:
                         logger.info(
                             f"[incremental] {_INCREMENTAL_STOP_AFTER} consecutive known "
-                            f"listings — stopping early. "
+                            f"listings: stopping early. "
                             f"{len(all_records)} new records collected."
                         )
                         incremental_stopped = True
@@ -389,13 +389,13 @@ def run_scraper(max_pages: int = MAX_PAGES) -> list[dict]:
                     record = _scrape_listing(driver, url)
 
                 except InvalidSessionIdException:
-                    logger.warning("⚠️ Chrome crashed — restarting driver...")
+                    logger.warning("⚠️ Chrome crashed: restarting driver...")
                     try:
                         driver.quit()
                     except Exception:
                         pass
                     driver = _build_driver()
-                    logger.info("✅ Driver restarted — retrying URL...")
+                    logger.info("✅ Driver restarted: retrying URL...")
                     try:
                         record = _scrape_listing(driver, url)
                     except Exception as retry_exc:
@@ -449,12 +449,12 @@ def run_scraper(max_pages: int = MAX_PAGES) -> list[dict]:
         _save_bronze(all_records)
         _log_fill_rates(all_records)
     else:
-        logger.info("No new records — bronze file not written.")
+        logger.info("No new records: bronze file not written.")
 
     mode = "incremental (stopped early)" if incremental_stopped else (
            "incremental (full scan)" if known_liens else "full (fresh DB)")
     logger.info(
-        f"=== Scraper finished [{mode}] — {len(all_records)} new records "
+        f"=== Scraper finished [{mode}]: {len(all_records)} new records "
         f"| {skipped} skipped ==="
     )
     return all_records
