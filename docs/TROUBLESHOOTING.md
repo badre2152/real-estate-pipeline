@@ -14,7 +14,7 @@
 
 ### KI-002 · `staging.raw_annonces` accumulates rows between failed runs
 **Symptom:** Clean layer processes stale data from a previous aborted run.  
-**Cause (old):** Staging was not filtered by run — all rows were read together.  
+**Cause (old):** Staging was not filtered by run: all rows were read together.  
 **Fix (FIX #15):** `run_staging()` now returns a `run_id` (UUID). `run_clean(run_id=...)` filters staging by that ID. Stale rows from previous runs are ignored until `make clean-db` is called.
 
 ---
@@ -34,7 +34,7 @@
 
 ### KI-005 · GX bronze suite validates on empty DataFrame
 **Symptom:** GX expectations always pass even when real data has issues.  
-**Cause (old):** The suite was built from a `pd.DataFrame(columns=[...])` — no actual rows.  
+**Cause (old):** The suite was built from a `pd.DataFrame(columns=[...])`: no actual rows.  
 **Fix (FIX #30):** `_build_bronze_suite()` now uses two realistic sample rows, giving GX real data types and non-null values to validate against.
 
 ---
@@ -69,4 +69,4 @@
 
 + **Cause:** Relative path resolution in scraper.py uses `__file__` traversal.
 
-+ **Impact:** None — path resolves correctly. Cosmetic only.
++ **Impact:** None: path resolves correctly. Cosmetic only.
