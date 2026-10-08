@@ -1,5 +1,5 @@
 """
-Great Expectations — Silver (Clean) Layer Suite
+Great Expectations: Silver (Clean) Layer Suite
 =================================================
 Validates the cleaned DataFrame (silver layer) using GX expectations.
 
@@ -25,7 +25,7 @@ except ImportError:
 import pandas as pd
 
 
-# ── Paths ───────────────────────────────────────────────────────────────
+# Paths
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 GX_ROOT = PROJECT_ROOT / "gx"
@@ -35,15 +35,15 @@ ASSET_NAME = "silver_asset"
 CURRENT_YEAR = datetime.datetime.now().year
 
 
-# ── Context ─────────────────────────────────────────────────────────────
+# Context
 
 def _get_context():
-    # Use ephemeral context — nothing is written to disk, so no "suite already
+    # Use ephemeral context: nothing is written to disk, so no "suite already
     # exists" errors when the pipeline restarts inside the same container.
     return gx.get_context(mode="ephemeral")
 
 
-# ── Suite builder (GX 0.18+ API) ────────────────────────────────────────
+# Suite builder (GX 0.18+ API)
 
 def _build_silver_suite(context) -> None:
     """Create or overwrite the silver expectation suite using GX 0.18+ API."""
@@ -83,7 +83,7 @@ def _build_silver_suite(context) -> None:
         expectation_suite=suite,
     )
 
-    # ── 1. Schema ───────────────────────────────────────────────────────────
+    # 1. Schema
     for col in [
         "prix", "prix_type", "ville", "lien", "scraped_at",
         "surface_m2", "prix_par_m2", "categorie_prix",
@@ -91,16 +91,16 @@ def _build_silver_suite(context) -> None:
     ]:
         validator.expect_column_to_exist(col)
 
-    # ── 2. Completeness ─────────────────────────────────────────────────────
+    # 2. Completeness
     validator.expect_column_values_to_not_be_null("prix", mostly=0.99)
     validator.expect_column_values_to_not_be_null("ville", mostly=0.99)
     validator.expect_column_values_to_not_be_null("lien", mostly=1.0)
     validator.expect_column_values_to_not_be_null("prix_type", mostly=1.0)
 
-    # ── 3. Numeric ranges ───────────────────────────────────────────────────
+    # 3. Numeric ranges
     # Only apply range checks to columns that are always populated (prix, surface_m2,
     # prix_par_m2). Columns that are frequently NULL (nb_chambres, nb_salles_bain,
-    # age_bien, annee_construction) are skipped here — GX raises errors when
+    # age_bien, annee_construction) are skipped here: GX raises errors when
     # both bounds are None or when bound types don't match nullable column
     # types.
     validator.expect_column_values_to_be_between(
@@ -116,7 +116,7 @@ def _build_silver_suite(context) -> None:
     validator.expect_column_values_to_be_between(
         "prix_par_m2", min_value=1.0, max_value=50_000.0, mostly=0.90)
 
-    # ── 4. Categorical sets ─────────────────────────────────────────────────
+    # 4. Categorical sets
     validator.expect_column_values_to_be_in_set(
         "prix_type",
         value_set=["mensuel", "journalier", "inconnu"],
@@ -144,21 +144,21 @@ def _build_silver_suite(context) -> None:
         mostly=1.0,
     )
 
-    # ── 5. Format ───────────────────────────────────────────────────────────
+    # 5. Format
     validator.expect_column_values_to_match_regex(
         "lien", regex=r"^https://www\.avito\.ma/", mostly=1.0)
     validator.expect_column_values_to_match_regex(
         "scraped_at", regex=r"^\d{4}-\d{2}-\d{2}", mostly=1.0)
 
-    # ── 6. Uniqueness ───────────────────────────────────────────────────────
+    # 6. Uniqueness
     validator.expect_column_values_to_be_unique("lien")
 
-    # ── 7. Table-level ──────────────────────────────────────────────────────
+    # 7. Table-level
     validator.expect_table_row_count_to_be_between(
         min_value=2, max_value=100_000)
 
 
-# ── Checkpoint runner ───────────────────────────────────────────────────
+# Checkpoint runner
 
 def run_silver_checkpoint(
         df_clean: pd.DataFrame,
@@ -226,7 +226,7 @@ def _print_summary(run_id, evaluated, successful, failed, passed):
     status = "✅ PASSED" if passed else "❌ FAILED"
     print(
         f"\n{'='*55}\n"
-        f"  GX SILVER CHECKPOINT — {status}\n"
+        f"  GX SILVER CHECKPOINT: {status}\n"
         f"  Run       : {run_id}\n"
         f"  Evaluated : {evaluated}\n"
         f"  Passed    : {successful}\n"
