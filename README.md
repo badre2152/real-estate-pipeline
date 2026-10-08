@@ -125,15 +125,20 @@ fact_annonce
 ### 🤖 Feature Store (ML)
 
 ```
-feature_store
+ml_schema.feature_store
 → prix (target)
+→ ville
+→ quartier
 → surface_m2
 → nb_chambres
+→ nb_salles_bain
+→ etage
 → prix_par_m2
-→ age_bien 
-> ⚠️ **Limitation:** `age_bien` is derived from `annee_construction`. This field has **0% fill rate** because Avito does not expose it in the listing HTML. ML models should not rely on `age_bien` until a data source is found.
 → categorie_prix
+→ prix_type
 ```
+
+`annee_construction` and `age_bien` are intentionally excluded because Avito does not provide reliable values for those fields. Metadata such as `titre`, `lien`, `scraped_at`, and `loaded_at` is stored for traceability but excluded from model training.
 
 
 ## 🔄 Pipeline Workflow
