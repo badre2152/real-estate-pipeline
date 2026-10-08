@@ -19,9 +19,9 @@ All notable changes to this project are documented here.
 
 ### Fixed
 - **CRITICAL** `gx_silver.py`: `NameError: run_id` → corrected to `run_label` (pipeline now completes past GX)
-- **CRITICAL** Scraper: prix extraction logic was inverted — skipped `"mois"` texts which are exactly the monthly price format
+- **CRITICAL** Scraper: prix extraction logic was inverted: skipped `"mois"` texts which are exactly the monthly price format
 - **CRITICAL** `gx_bronze.py` / `gx_silver.py`: suite `add_or_update` after failed `delete` caused "suite already exists" crash; added fallback `get()`
-- `_get_listing_urls`: changed `OR` to `AND` for rental filter — was collecting non-rental URLs
+- `_get_listing_urls`: changed `OR` to `AND` for rental filter: was collecting non-rental URLs
 - `_FIELDS` in `load_staging.py` now includes `prix_type` (was missing from QC report)
 - `_rule_lien_uniqueness` in `bronze_validator.py`: replaced O(n²) `list.count()` with `collections.Counter` O(n)
 - `fetch_all` in `db.py`: added `with conn:` for consistent transaction management
@@ -49,7 +49,7 @@ All notable changes to this project are documented here.
 - PostgreSQL Data Warehouse schema (star schema design for BI, OBT for ML)
 - Bronze → Staging validation (`bronze_validator.py`) with hard/soft rules
 - Staging → Clean validation (`clean_validator.py`) with pre/post checkpoints
-- Great Expectations integration (bronze + silver suites) — optional
+- Great Expectations integration (bronze + silver suites): optional
 - `prix_type` field (mensuel / journalier / inconnu) across all layers
 - Artefact ville detection and filtering ("COURS ET FORMATIONS")
 - `is_grande_ville` and `region_label` feature engineering
