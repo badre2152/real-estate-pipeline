@@ -1,12 +1,12 @@
 """
-Staging layer — loads raw scraped records into staging.raw_annonces.
+Staging layer: loads raw scraped records into staging.raw_annonces.
 Data is stored as-is (all TEXT); no transformation happens here.
 
 FIX #15: Added run_id column to staging table.
          _fetch_staging in clean_data.py can filter by run_id to avoid
          mixing records from different pipeline runs when staging is not
          truncated between retries.
-FIX #14: Inline DDL_UNIQUE_LIEN removed — now managed by utils/migrations.py.
+FIX #14: Inline DDL_UNIQUE_LIEN removed: now managed by utils/migrations.py.
 """
 
 import json
@@ -47,7 +47,7 @@ _DDL_ADD_RUN_ID = """
 ALTER TABLE staging.raw_annonces ADD COLUMN IF NOT EXISTS run_id TEXT NOT NULL DEFAULT 'legacy';
 """
 
-# FIX: ON CONFLICT DO UPDATE (not DO NOTHING) — required for run_id isolation correctness.
+# FIX: ON CONFLICT DO UPDATE (not DO NOTHING): required for run_id isolation correctness.
 # If the same lien was scraped in a previous run, we update run_id to the current run
 # so _fetch_staging(run_id=current_run) can find it. DO NOTHING would silently drop it,
 # causing _fetch_staging to return 0 rows for that lien in the current run.
@@ -83,13 +83,13 @@ def _latest_bronze_file() -> str | None:
 
 
 def _qc_report(records: list[dict]) -> None:
-    """Log a fill-rate report for every field — initial quality control."""
+    """Log a fill-rate report for every field: initial quality control."""
     n = len(records)
     if n == 0:
-        logger.warning("QC Report: 0 records — nothing to analyse.")
+        logger.warning("QC Report: 0 records: nothing to analyse.")
         return
 
-    lines = [f"\n📋 STAGING QC REPORT — {n} records"]
+    lines = [f"\n📋 STAGING QC REPORT: {n} records"]
     for field in _FIELDS:
         filled = sum(
             1 for r in records if r.get(field) and str(
@@ -98,7 +98,7 @@ def _qc_report(records: list[dict]) -> None:
         pct = 100 * filled // n
         status = "✅" if pct >= 80 else ("⚠️" if pct >= 40 else "❌")
         lines.append(
-            f"  {status} {field:<22}: {filled}/{n} filled ({pct}%) — {missing} missing"
+            f"  {status} {field:<22}: {filled}/{n} filled ({pct}%): {missing} missing"
         )
 
     daily = sum(1 for r in records if r.get("prix_type") == "journalier")
@@ -146,19 +146,19 @@ def run_staging(
         logger.debug(
             f"run_id column already present or migration skipped: {e}")
 
-    logger.info("staging.raw_annonces — schema/table ready.")
+    logger.info("staging.raw_annonces: schema/table ready.")
 
     if records is None:
         path = _latest_bronze_file()
         if not path:
-            logger.error("No bronze file found — aborting staging.")
+            logger.error("No bronze file found: aborting staging.")
             return run_id
         logger.info(f"Reading bronze file: {path}")
         with open(path, encoding="utf-8") as f:
             records = json.load(f)
 
     if not records:
-        logger.warning("Empty record list — nothing to insert.")
+        logger.warning("Empty record list: nothing to insert.")
         return run_id
 
     # In incremental mode (DB already has data), fewer new records is normal.
@@ -181,7 +181,7 @@ def run_staging(
     # PostgreSQL raises "ON CONFLICT DO UPDATE command cannot affect row a second time"
     # when the same lien appears more than once in a single INSERT batch.
     # The scraper returns 141+ duplicates (same listing seen on multiple pages).
-    # We keep only the first occurrence per lien — data is identical across
+    # We keep only the first occurrence per lien: data is identical across
     # duplicates.
     seen_liens: set = set()
     deduped_records = []
@@ -223,6 +223,6 @@ def run_staging(
 
     bulk_insert(_INSERT, rows)
     logger.info(
-        f"=== Staging load finished — {len(rows)} unique rows inserted (run_id={run_id}) ==="
+        f"=== Staging load finished: {len(rows)} unique rows inserted (run_id={run_id}) ==="
     )
     return run_id
