@@ -1,26 +1,26 @@
-# Great Expectations — Setup & Usage Guide
+# Great Expectations: Setup & Usage Guide
 
 ## Architecture
 
 ```
 src/
-├── staging/
-│   └── bronze_validator.py      ← Custom hard/soft rules (always runs)
-├── clean/
-│   └── clean_validator.py       ← Custom hard/soft rules (always runs)
-└── expectations/
-    ├── gx_bronze.py             ← GX suite for bronze layer (optional)
-    └── gx_silver.py             ← GX suite for silver layer (optional)
+    staging/
+        bronze_validator.py      : Custom hard/soft rules (always runs)
+    clean/
+        clean_validator.py       : Custom hard/soft rules (always runs)
+    expectations/
+        gx_bronze.py             : GX suite for bronze layer (optional)
+        gx_silver.py             : GX suite for silver layer (optional)
 
-gx/                              ← GX context (auto-created on first run)
-├── expectations/
-│   ├── bronze_suite.json        ← Stored expectation definitions
-│   └── silver_suite.json
-└── uncommitted/
-    ├── validations/             ← Per-run JSON validation results
-    └── data_docs/
-        └── local_site/
-            └── index.html       ← HTML report (open in browser)
+gx/                              : GX context (auto-created on first run)
+    expectations/
+        bronze_suite.json        : Stored expectation definitions
+        silver_suite.json
+    uncommitted/
+        validations/             : Per-run JSON validation results
+        data_docs/
+            local_site/
+                index.html       : HTML report (open in browser)
 ```
 
 ## Why Two Layers?
@@ -97,10 +97,10 @@ rebuild_silver()
 |----------|-------------|
 | Schema | 12 required columns exist |
 | Completeness | prix ≥ 50%, ville ≥ 50%, titre ≥ 80%, scraped_at = 100% |
-| Value validity | prix_type enum, surface 1–10 000, nb_chambres 1–20, nb_salles_bain 1–10 |
+| Value validity | prix_type enum, surface 1 to 10 000, nb_chambres 1 to 20, nb_salles_bain 1 to 10 |
 | Format | lien regex `avito.ma/`, scraped_at ISO 8601 |
 | Uniqueness | lien unique per file |
-| Table-level | row count 5–10 000, required columns present |
+| Table-level | row count 5 to 10 000, required columns present |
 
 ### Silver Suite (28 expectations)
 
@@ -108,7 +108,7 @@ rebuild_silver()
 |----------|-------------|
 | Schema | 10 required output columns exist |
 | Completeness | prix ≥ 99%, ville ≥ 99%, lien = 100%, prix_type = 100% |
-| Numeric ranges | prix 100–500 000 DH, surface_m2 5–5 000, prix_par_m2 1–50 000, age_bien 0–200 |
+| Numeric ranges | prix 100 to 500 000 DH, surface_m2 5 to 5 000, prix_par_m2 1 to 50 000, age_bien 0 to 200 |
 | Categorical sets | prix_type, categorie_prix, region_label, is_grande_ville |
 | Format | lien regex, scraped_at date format |
 | Uniqueness | lien unique in silver |
