@@ -1,4 +1,4 @@
-# Avito Data Pipeline — Makefile
+# Avito Data Pipeline: Makefile
 # Usage: make <target>
 
 .PHONY: run test test-integration migrate docker-up docker-down clean-db lint help
@@ -19,21 +19,21 @@ migrate:
 	python -c "from src.utils.migrations import run_all_migrations; run_all_migrations()" 
 
 scrape-full:
-	@echo "🚀 Starting full scrape — 25 pages (~500 listings)"
-	docker-compose up --build
+	@echo "🚀 Starting full scrape. 25 pages (~500 listings)"
+	docker compose up --build
 
 scrape-only:
 	@echo "🔍 Running scraper only (no DB required)"
 	python -c "from src.extract.scraper import run_scraper; run_scraper(max_pages=25)"
 
 docker-up:
-	docker-compose up -d
+	docker compose up -d
 	@echo "Waiting for PostgreSQL to be ready..."
-	@docker-compose exec postgres pg_isready -U $${DB_USER} -q || sleep 5
+	@docker compose exec postgres pg_isready -U $${DB_USER} -q || sleep 5
 	@echo "DB is up on port 5433"
 
 docker-down:
-	docker-compose down
+	docker compose down
 
 clean-db:
 	@echo "Truncating staging and clean tables..."
@@ -53,32 +53,32 @@ lint:
 		src/warehouse/ml_schema.py \
 		src/expectations/gx_bronze.py \
 		src/expectations/gx_silver.py \
-	&& echo "All files syntax-OK"
+	&& echo "All files syntax OK"
 
 rebuild-gx:
 	python -m src.expectations.gx_bronze
 	python -c "from src.expectations.gx_silver import rebuild_suite; rebuild_suite()"
 
 help:
-@echo "Available targets:"
-@echo ""
-@echo "Pipeline:"
-@echo "  run           Run the full pipeline"
-@echo "  migrate       Run DB migrations"
-@echo ""
-@echo "Scraping:"
-@echo "  scrape-full   Full scrape — 25 pages via Docker"
-@echo "  scrape-only   Run scraper only (no DB)"
-@echo ""
-@echo "Testing:"
-@echo "  test          Run all unit tests"
-@echo "  test-cov      Run tests with coverage report"
-@echo ""
-@echo "Data & Quality:"
-@echo "  rebuild-gx    Force-rebuild GX expectation suites"
-@echo "  clean-db      Truncate staging and clean tables"
-@echo ""
-@echo "Dev & Infra:"
-@echo "  docker-up     Start PostgreSQL via Docker (port 5433)"
-@echo "  docker-down   Stop Docker containers"
-@echo "  lint          Syntax-check all Python source files"
+	@echo "Available targets:"
+	@echo ""
+	@echo "Pipeline:"
+	@echo "  run           Run the full pipeline"
+	@echo "  migrate       Run DB migrations"
+	@echo ""
+	@echo "Scraping:"
+	@echo "  scrape-full   Full scrape. 25 pages via Docker"
+	@echo "  scrape-only   Run scraper only (no DB)"
+	@echo ""
+	@echo "Testing:"
+	@echo "  test          Run all unit tests"
+	@echo "  test-cov      Run tests with coverage report"
+	@echo ""
+	@echo "Data & Quality:"
+	@echo "  rebuild-gx    Force-rebuild GX expectation suites"
+	@echo "  clean-db      Truncate staging and clean tables"
+	@echo ""
+	@echo "Dev & Infra:"
+	@echo "  docker-up     Start PostgreSQL via Docker (port 5433)"
+	@echo "  docker-down   Stop Docker containers"
+	@echo "  lint          Syntax-check all Python source files"
