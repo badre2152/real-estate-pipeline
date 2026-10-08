@@ -1,4 +1,4 @@
-# Pipeline Log Analysis — Real Data
+# Pipeline Log Analysis: Real Data
 
 > Generated from 6 bronze files collected on 2026-05-02 and 2026-05-03.
 > Total: 208 records across 11 pipeline runs.
@@ -47,12 +47,12 @@ renders this attribute differently. This is a known scraper limitation.
 |-------|-------|-------|
 | Artefact ville "COURS ET FORMATIONS" | 9/208 (4.3%) | Scraper captures non-property listings |
 | Price 25 DH (Rabat, 240m²) | 1 | Scraper extracted wrong element |
-| Price 499 DH (Marrakech, 60m²) | 1 | Suspiciously low — possible scraper error |
+| Price 499 DH (Marrakech, 60m²) | 1 | Suspiciously low: possible scraper error |
 | Price 1,287,000 DH (Marrakech, 99m²) | 1 | Likely a sale listing, not rental |
 | Arabic city names (طنجة, مراكش) | 2 | Normalized to French in clean layer |
 | Cross-run duplicate liens | 6 liens duplicated | Handled by `ON CONFLICT DO NOTHING` |
-| Price 500 DH (Tanger)      | 1 | Suspiciously low — possible scraper error |
-| Price 850 DH (Marrakech)   | 1 | Suspiciously low — possible scraper error |
+| Price 500 DH (Tanger)      | 1 | Suspiciously low: possible scraper error |
+| Price 850 DH (Marrakech)   | 1 | Suspiciously low: possible scraper error |
 **Note:** 
 + "COURS ET FORMATIONS" artefacts appear consistently across runs,
 
@@ -90,7 +90,7 @@ This is expected for the `immobilier-à_louer` category on Avito.
 
 | Metric | Value |
 |--------|-------|
-| Min | 0 m² (2 records — scraper error) |
+| Min | 0 m² (2 records: scraper error) |
 | Median | 80 m² |
 | Max | 1311 m² |
 
