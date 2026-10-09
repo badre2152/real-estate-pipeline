@@ -30,13 +30,11 @@ from src.config import (
 logger = get_logger("bronze_validator")
 
 
-# ── Custom exception ────────────────────────────────────────────────────
 
 class BronzeValidationError(Exception):
     """Raised when a hard validation rule fails. Stops the pipeline."""
 
 
-# ── Thresholds ──────────────────────────────────────────────────────────
 
 SOFT_MIN_FILL_PCT = 0.40       # warn if field fill-rate below 40%
 
@@ -61,7 +59,6 @@ _SCRAPED_AT_PATTERN = re.compile(
 )
 
 
-# ── Individual rule functions ───────────────────────────────────────────
 
 def _rule_min_records(records: list[dict]) -> None:
     """HARD: pipeline is useless with fewer than HARD_MIN_RECORDS records."""
@@ -267,7 +264,6 @@ def _rule_soft_field_fill_rates(records: list[dict]) -> None:
     logger.info("  Secondary field fill rates:\n" + "\n".join(lines))
 
 
-# ── Public entry point ──────────────────────────────────────────────────
 
 def validate_bronze(records: list[dict], is_incremental: bool = False) -> dict:
     """
@@ -283,7 +279,6 @@ def validate_bronze(records: list[dict], is_incremental: bool = False) -> dict:
     warnings_count = 0
     hard_failures = 0
 
-    # ── HARD rules: any failure aborts the pipeline ────────────────────────
     # In incremental mode, skip min_records check (few new records is normal)
     min_records_rule = [] if is_incremental else [("min_records", _rule_min_records)]
     hard_rules = min_records_rule + [
@@ -304,7 +299,6 @@ def validate_bronze(records: list[dict], is_incremental: bool = False) -> dict:
                 f"Unexpected error in hard rule '{rule_name}': {e}"
             ) from e
 
-    # ── SOFT rules: failures are logged as warnings only ───────────────────
     soft_rules = [
         ("no_error_field", _rule_no_error_field),
         ("prix_format", _rule_prix_format),
@@ -323,7 +317,6 @@ def validate_bronze(records: list[dict], is_incremental: bool = False) -> dict:
             warnings_count += 1
             logger.warning(f"  ⚠️  soft rule '{rule_name}' raised: {e}")
 
-    # ── Summary ─────────────────────────────────────────────────────────────
     n_valid = sum(1 for r in records if not r.get("error"))
     summary = {
         "total_records": len(records),
