@@ -13,7 +13,7 @@ from src.warehouse.ml_schema import _INSERT as ML_INSERT
 
 def _assigned_columns(sql: str) -> set[str]:
     update_clause = sql.split("ON CONFLICT (lien) DO UPDATE SET", 1)[1]
-    return set(re.findall(r"\b([a-z_]+)\s*=\s*EXCLUDED\.\1\b", update_clause))
+    return set(re.findall(r"\b([a-z_][a-z0-9_]*)\s*=\s*EXCLUDED\.\1\b", update_clause))
 
 
 def test_staging_upsert_refreshes_all_listing_attributes():
