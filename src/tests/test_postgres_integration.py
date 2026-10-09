@@ -73,3 +73,34 @@ def test_schema_migrations_are_idempotent(database):
             names = {row[0] for row in cursor.fetchall()}
 
     assert names == {name for name, _ in MIGRATIONS}
+
+
+def test_failed_migration_rolls_back_schema_and_tracking(database, monkeypatch):
+    from src.utils import migrations
+
+    monkeypatch.setattr(
+        migrations,
+        "MIGRATIONS",
+        [
+            (
+                "integration_rollback_create",
+                "CREATE TABLE public.integration_rollback_probe (id INTEGER)",
+            ),
+            ("integration_rollback_fail", "INVALID SQL STATEMENT"),
+        ],
+    )
+
+    with pytest.raises(psycopg2.Error):
+        migrations.run_all_migrations()
+
+    with database:
+        with database.cursor() as cursor:
+            cursor.execute(
+                "SELECT to_regclass('public.integration_rollback_probe')"
+            )
+            assert cursor.fetchone()[0] is None
+            cursor.execute(
+                "SELECT COUNT(*) FROM public.schema_migrations "
+                "WHERE name LIKE 'integration_rollback_%'"
+            )
+            assert cursor.fetchone()[0] == 0
