@@ -266,11 +266,9 @@ def _validate(inserted_this_run: int) -> None:
         else:
             logger.info(f"BI validation: no orphan rows in {dim}")
 
-    if warnings == 0:
-        logger.info("BI validation passed")
-    else:
-        logger.warning(
-            f"BI validation finished with {warnings} warnings")
+    if warnings:
+        raise RuntimeError(f"BI validation failed: {warnings} invalid dimensions")
+    logger.info("BI validation passed")
 
 
 def _fetch_clean() -> pd.DataFrame:
@@ -397,18 +395,9 @@ def run_bi_schema(df: pd.DataFrame | None = None) -> None:
         f"=== BI Schema load finished: {count} inserted, {skipped} skipped ==="
     )
 
-    views_ok = 0
     for view_sql in _VIEWS:
-        try:
-            execute_query(view_sql)
-            views_ok += 1
-        except Exception as e:
-            logger.warning(f"Could not create view: {e}")
-    if views_ok == len(_VIEWS):
-        logger.info("Power BI helper views created successfully.")
-    else:
-        logger.warning(
-            f"Only {views_ok}/{len(_VIEWS)} views created: check warnings above.")
+        execute_query(view_sql)
+    logger.info("Power BI helper views created successfully.")
 
     _validate(inserted_this_run=count)
     _save_gold_bi()
@@ -451,15 +440,14 @@ def _save_gold_bi() -> None:
                     logger.warning(f"Gold BI Parquet skipped [{stem}]: {e}")
 
                 exported_ok += 1
-            except Exception as e:
-                logger.warning(f"Gold BI export failed for {stem}: {e}")
+            except Exception:
+                logger.exception("Gold BI export failed for %s", stem)
+                raise
     finally:
         release_connection(conn)
 
     if exported_ok == 0:
-        logger.error(
-            "Gold BI: ALL exports produced 0 rows or failed. "
-            "The bi_schema tables may be empty: verify the pipeline ran end-to-end.")
+        raise RuntimeError("Gold BI export produced no data")
     else:
         logger.info(
             f"Gold BI: {exported_ok}/{len(exports)} exports saved successfully.")
