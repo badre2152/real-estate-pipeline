@@ -17,7 +17,6 @@ from src.config import DB_POOL_MIN, DB_POOL_MAX
 load_dotenv()
 logger = get_logger("db")
 
-# ── Connection Pool ──────────────────────────────────────────────────────────
 _pool: pg_pool.ThreadedConnectionPool | None = None
 _pool_lock = threading.Lock()
 
@@ -61,7 +60,6 @@ def close_pool() -> None:
     _pool = None
 
 
-# ── Query helpers ────────────────────────────────────────────────────────────
 
 def execute_query(query: str, params=None) -> None:
     conn = get_connection()
@@ -95,7 +93,6 @@ def bulk_insert(query: str, rows: list) -> None:
 
 
 def fetch_all(query: str, params=None) -> list:
-    # FIX #28: consistently use `with conn` (transaction context) like
     # execute_query.
     conn = get_connection()
     try:
