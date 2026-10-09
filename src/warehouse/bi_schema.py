@@ -383,7 +383,17 @@ def run_bi_schema(df: pd.DataFrame | None = None) -> None:
                              titre, prix, prix_type, surface_m2, prix_par_m2,
                              categorie_prix, lien)
                         VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
-                        ON CONFLICT (lien) DO NOTHING
+                        ON CONFLICT (lien) DO UPDATE SET
+                            id_localisation = EXCLUDED.id_localisation,
+                            id_caracteristiques = EXCLUDED.id_caracteristiques,
+                            id_temps = EXCLUDED.id_temps,
+                            titre = EXCLUDED.titre,
+                            prix = EXCLUDED.prix,
+                            prix_type = EXCLUDED.prix_type,
+                            surface_m2 = EXCLUDED.surface_m2,
+                            prix_par_m2 = EXCLUDED.prix_par_m2,
+                            categorie_prix = EXCLUDED.categorie_prix,
+                            loaded_at = NOW()
                         """,
                         (
                             id_loc, id_car, id_tps,
