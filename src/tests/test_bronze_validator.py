@@ -30,14 +30,11 @@ import sys
 import os
 import unittest
 
-# ── Path setup ──────────────────────────────────────────────────────────
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, PROJECT_ROOT)
 
 
-# ══════════════════════════════════════════════════════════════════════════════
 # HARD RULE: min_records
-# ══════════════════════════════════════════════════════════════════════════════
 
 class TestRuleMinRecords(unittest.TestCase):
 
@@ -68,9 +65,7 @@ class TestRuleMinRecords(unittest.TestCase):
         _rule_min_records(records)  # must not raise
 
 
-# ══════════════════════════════════════════════════════════════════════════════
 # HARD RULE: required_keys
-# ══════════════════════════════════════════════════════════════════════════════
 
 class TestRuleRequiredKeys(unittest.TestCase):
 
@@ -121,9 +116,7 @@ class TestRuleRequiredKeys(unittest.TestCase):
         _rule_required_keys(records)  # must not raise
 
 
-# ══════════════════════════════════════════════════════════════════════════════
 # HARD RULE: prix_fill_rate
-# ══════════════════════════════════════════════════════════════════════════════
 
 class TestRulePrixFillRate(unittest.TestCase):
 
@@ -158,9 +151,7 @@ class TestRulePrixFillRate(unittest.TestCase):
             _rule_prix_fill_rate(records)
 
 
-# ══════════════════════════════════════════════════════════════════════════════
 # HARD RULE: ville_fill_rate
-# ══════════════════════════════════════════════════════════════════════════════
 
 class TestRuleVilleFillRate(unittest.TestCase):
 
@@ -197,9 +188,7 @@ class TestRuleVilleFillRate(unittest.TestCase):
         _rule_ville_fill_rate(records)  # must not raise
 
 
-# ══════════════════════════════════════════════════════════════════════════════
 # SOFT RULES (no exception expected — just logging)
-# ══════════════════════════════════════════════════════════════════════════════
 
 class TestSoftRules(unittest.TestCase):
 
@@ -266,9 +255,7 @@ class TestSoftRules(unittest.TestCase):
         _rule_artefact_villes(records)   # soft — must not raise
 
 
-# ══════════════════════════════════════════════════════════════════════════════
 # validate_bronze() — integration tests
-# ══════════════════════════════════════════════════════════════════════════════
 
 class TestValidateBronzeIntegration(unittest.TestCase):
 
