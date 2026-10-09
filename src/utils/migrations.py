@@ -1,23 +1,5 @@
-"""
-migrations.py: Centralised DDL migration registry.
+"""Ordered, transactional PostgreSQL schema migrations."""
 
-FIX #14: Instead of _DDL_MIGRATIONS scattered across bi_schema.py,
-ml_schema.py, and clean_data.py, all migrations are defined here and
-applied in order via run_all_migrations().
-
-Each migration has a unique name. Applied migrations are tracked in the
-schema_migrations table so each one only ever runs once: even if the
-pipeline is restarted.
-
-FIX #SCHEMA: Added bootstrap migrations (boot_*) that create all schemas
-and base tables before any ALTER TABLE migration runs. Previously,
-clean_001 to clean_007 would fail on a fresh DB because clean.annonces
-was only created later inside _load_to_db() (called during the CLEAN
-pipeline step: well after MIGRATIONS runs). The boot_* entries are
-idempotent (IF NOT EXISTS) and safe to run repeatedly.
-"""
-
-from src.utils.db import execute_query, fetch_all
 from src.utils.logger import get_logger
 
 logger = get_logger("migrations")
@@ -30,12 +12,8 @@ CREATE TABLE IF NOT EXISTS public.schema_migrations (
 );
 """
 
-# Order matters: each entry is (name, sql).
-# ADD new migrations at the END: never reorder or delete existing entries.
 
 MIGRATIONS: list[tuple[str, str]] = [
-    # These run FIRST so every subsequent ALTER TABLE has a table to target.
-    # All statements are fully idempotent (IF NOT EXISTS).
     ("boot_001_clean_schema",
      "CREATE SCHEMA IF NOT EXISTS clean;"),
 
@@ -142,10 +120,6 @@ MIGRATIONS: list[tuple[str, str]] = [
     ("boot_010_staging_schema",
      "CREATE SCHEMA IF NOT EXISTS staging;"),
 
-    # staging_001_unique_lien can safely add the UNIQUE constraint on lien.
-    # Previously the table was only created inside run_staging(): AFTER
-    # migrations ran: so the constraint was never applied and ON CONFLICT
-    # (lien) always failed with "no unique constraint matching specification".
     ("boot_011_staging_raw_annonces",
      """CREATE TABLE IF NOT EXISTS staging.raw_annonces (
          id                  SERIAL PRIMARY KEY,
@@ -188,7 +162,6 @@ MIGRATIONS: list[tuple[str, str]] = [
     ("clean_007_add_prix_type",
      "ALTER TABLE clean.annonces ADD COLUMN IF NOT EXISTS prix_type TEXT DEFAULT 'mensuel';"),
 
-    # so we can safely add the UNIQUE constraint here without the IF EXISTS table check.
     ("staging_001_unique_lien",
      """DO $$ BEGIN
          IF NOT EXISTS (
@@ -225,8 +198,6 @@ MIGRATIONS: list[tuple[str, str]] = [
     ("bi_006_add_quartier_known",
      "ALTER TABLE bi_schema.dim_localisation ADD COLUMN IF NOT EXISTS quartier_known BOOLEAN NOT NULL DEFAULT FALSE;"),
 
-    # These columns are always NULL in Avito data: dropping them keeps schemas clean.
-    # IF EXISTS guards make these safe to run on fresh DBs too.
     ("clean_008_drop_annee_construction",
      "ALTER TABLE clean.annonces DROP COLUMN IF EXISTS annee_construction;"),
     ("clean_009_drop_age_bien",
@@ -246,27 +217,28 @@ MIGRATIONS: list[tuple[str, str]] = [
 
 
 def run_all_migrations() -> None:
-    """Apply all pending migrations in order. Each migration runs at most once."""
-    execute_query(_DDL_TRACKING)
+    """Apply pending schema changes and record each change atomically."""
+    from src.utils.db import get_connection, release_connection
 
-    applied = {row[0] for row in fetch_all(
-        "SELECT name FROM public.schema_migrations;")}
-    pending = [(name, sql) for name, sql in MIGRATIONS if name not in applied]
-
-    if not pending:
-        logger.info("Migrations: all up-to-date, nothing to run.")
-        return
-
-    logger.info(
-        f"Migrations: {len(pending)} pending out of {len(MIGRATIONS)} total.")
-    for name, sql in pending:
-        try:
-            execute_query(sql)
-            execute_query(
-                "INSERT INTO public.schema_migrations (name) VALUES (%s) ON CONFLICT DO NOTHING;",
-                (name,),
-            )
-            logger.info(f"  ✅ Migration applied: {name}")
-        except Exception as exc:
-            logger.error(f"  ❌ Migration failed ({name}): {exc}")
-            raise
+    connection = get_connection()
+    try:
+        with connection:
+            with connection.cursor() as cursor:
+                cursor.execute(_DDL_TRACKING)
+                cursor.execute("SELECT name FROM public.schema_migrations")
+                applied = {row[0] for row in cursor.fetchall()}
+                pending = [
+                    (name, sql) for name, sql in MIGRATIONS
+                    if name not in applied
+                ]
+                for name, sql in pending:
+                    cursor.execute(sql)
+                    cursor.execute(
+                        "INSERT INTO public.schema_migrations (name) "
+                        "VALUES (%s) ON CONFLICT DO NOTHING",
+                        (name,),
+                    )
+                    logger.info("Migration applied: %s", name)
+                logger.info("Migrations completed: %s applied", len(pending))
+    finally:
+        release_connection(connection)
