@@ -35,7 +35,6 @@ BRONZE_DIR = os.path.join(os.path.dirname(__file__), "../../data/bronze")
 # Incremental scraping: stop after this many consecutive known listings
 _INCREMENTAL_STOP_AFTER = 5
 
-# ✅ FIX: كلمات مفتاحية محدّثة: تضيف studio/louer، تحذف terrain/ferme
 IMMOBILIER_KEYWORDS = [
     "appartement", "appartements",
     "maison", "maisons",
@@ -47,27 +46,23 @@ IMMOBILIER_KEYWORDS = [
     "louer",
 ]
 
-# ✅ FIX: قائمة موسّعة لمنع التقاط نصوص خاطئة كـ quartier
 LOCATION_FALSE_POSITIVES = [
     "vendre", "louer", "categorie", "annonce",
     "immobilier", "appartement", "appartements",
     "maison", "maisons", "villa", "villas",
     "terrain", "terrains", "bureau", "riad",
     "local", "ferme", "résidentiel", "commercial",
-    # ✅ إضافات جديدة لمنع "Femmes De Ménage" وما شابهها
     "femmes", "ménage", "service", "agent",
     "agence", "contact", "appel", "whatsapp",
     "référence", "ref", "code",
 ]
 
-# ✅ FIX: مفردات تدل على سعر يومي: يجب الإشارة إليها في السجل
 DAILY_RENTAL_KEYWORDS = [
     "jour", "journée", "quotidien", "quotidiennement",
     "vacances", "nuit", "nuitée", "week-end",
 ]
 
 
-# ── Driver ──────────────────────────────────────────────────────────────
 
 def _build_driver() -> webdriver.Chrome:
     options = Options()
@@ -100,7 +95,6 @@ def _build_driver() -> webdriver.Chrome:
     return driver
 
 
-# ── Helpers ─────────────────────────────────────────────────────────────
 
 def _safe_text(driver, css: str, default: str = "") -> str:
     try:
@@ -162,22 +156,18 @@ def _scrape_listing(driver, url: str) -> dict:
             EC.presence_of_element_located((By.CSS_SELECTOR, "h1"))
         )
 
-        # ── Titre ──────────────────────────────────────────────────────────
         titre = _safe_text(driver, "h1")
-        # ✅ FIX: حذف كود الوكالة من العنوان (مثال: RBA-YA-1053 - Appartement...)
         titre = re.sub(
             r'^[A-Z]{2,5}-[A-Z]{2,5}-\d+\s*[-–]\s*',
             '',
             titre).strip()
         record["titre"] = titre
 
-        # ✅ FIX: كشف الإيجار اليومي وتسجيله
         titre_lower = titre.lower()
         if any(kw in titre_lower for kw in DAILY_RENTAL_KEYWORDS):
             record["prix_type"] = "journalier"
             logger.warning(f"⚠️ Possible daily rental: {titre[:60]}")
 
-        # ── Prix ───────────────────────────────────────────────────────────
         # Strategy: look for a span/p that contains digits + "DH".
         # Accept if it also contains "mois" (monthly price) or not.
         # Prefer shorter text (avoids capturing full sentences).
@@ -193,8 +183,6 @@ def _scrape_listing(driver, url: str) -> dict:
         if prix_candidates:
             record["prix"] = min(prix_candidates, key=len)
 
-        # ── Localisation ───────────────────────────────────────────────────
-        # ✅ FIX: قائمة موسّعة + تحقق مشدّد من الجانبين
         for el in driver.find_elements(By.CSS_SELECTOR, "span, p, a"):
             try:
                 txt = el.text.strip()
@@ -205,7 +193,6 @@ def _scrape_listing(driver, url: str) -> dict:
                 if not any(w in txt_lower for w in LOCATION_FALSE_POSITIVES):
                     parts = [p.strip() for p in txt.split(",")]
                     if len(parts) == 2 and all(parts):
-                        # ✅ FIX: التحقق أن كلا الجزأين أحرف فقط (ليس أرقام أو رموز)
                         if all(
                             re.match(
                                 r"^[\w\s\-\.'éèêëàâùûüîïôç]+$",
@@ -215,7 +202,6 @@ def _scrape_listing(driver, url: str) -> dict:
                             record["ville"] = parts[1]
                             break
 
-        # ── Attributs ──────────────────────────────────────────────────────
         for el in driver.find_elements(By.CSS_SELECTOR, "span, div, p"):
             try:
                 txt = el.text.strip()
@@ -260,7 +246,6 @@ def _scrape_listing(driver, url: str) -> dict:
     return record
 
 
-# ── Bronze persistence ──────────────────────────────────────────────────
 
 def _save_bronze(records: list[dict]) -> str:
     from datetime import timezone
@@ -276,7 +261,6 @@ def _save_bronze(records: list[dict]) -> str:
     return path
 
 
-# ── Fill rate monitor ───────────────────────────────────────────────────
 
 def _log_fill_rates(records: list[dict]) -> None:
     if not records:
@@ -294,14 +278,12 @@ def _log_fill_rates(records: list[dict]) -> None:
         lines.append(f"  {status} {field:<22}: {pct:.1f}%  ({filled}/{total})")
     logger.info("\n".join(lines))
 
-    # ✅ FIX: إحصائيات prix_type
     daily_count = sum(1 for r in records if r.get("prix_type") == "journalier")
     if daily_count:
         logger.warning(
             f"⚠️ {daily_count}/{total} إعلانات إيجار يومي: راجعها يدوياً")
 
 
-# ── Validity guard ──────────────────────────────────────────────────────
 
 def _is_valid_record(record: dict) -> bool:
     """
@@ -311,7 +293,6 @@ def _is_valid_record(record: dict) -> bool:
     return bool(record.get("prix")) and bool(record.get("ville"))
 
 
-# ── Incremental scraping ────────────────────────────────────────────────
 
 def _get_known_liens() -> set[str]:
     """
@@ -334,7 +315,6 @@ def _is_already_scraped(url: str, known_liens: set[str]) -> bool:
     return url in known_liens
 
 
-# ── Entry point ─────────────────────────────────────────────────────────
 
 def run_scraper(max_pages: int = MAX_PAGES) -> list[dict]:
     logger.info("=== Scraper started ===")
@@ -342,7 +322,6 @@ def run_scraper(max_pages: int = MAX_PAGES) -> list[dict]:
     all_records: list[dict] = []
     skipped = 0
 
-    # ── Incremental: load known liens from DB once ─────────────────────
     known_liens = _get_known_liens()
     consecutive_known = 0
     incremental_stopped = False
@@ -367,7 +346,6 @@ def run_scraper(max_pages: int = MAX_PAGES) -> list[dict]:
 
             for url in listing_urls:
 
-                # ── Incremental check ──────────────────────────────────
                 if known_liens and _is_already_scraped(url, known_liens):
                     consecutive_known += 1
                     logger.debug(
