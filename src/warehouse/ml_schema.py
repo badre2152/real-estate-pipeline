@@ -63,7 +63,20 @@ INSERT INTO ml_schema.feature_store
      etage, prix_par_m2, categorie_prix,
      prix_type, titre, lien, scraped_at)
 VALUES %s
-ON CONFLICT (lien) DO NOTHING
+ON CONFLICT (lien) DO UPDATE SET
+    prix           = EXCLUDED.prix,
+    ville          = EXCLUDED.ville,
+    quartier       = EXCLUDED.quartier,
+    surface_m2     = EXCLUDED.surface_m2,
+    nb_chambres    = EXCLUDED.nb_chambres,
+    nb_salles_bain = EXCLUDED.nb_salles_bain,
+    etage          = EXCLUDED.etage,
+    prix_par_m2    = EXCLUDED.prix_par_m2,
+    categorie_prix = EXCLUDED.categorie_prix,
+    prix_type      = EXCLUDED.prix_type,
+    titre          = EXCLUDED.titre,
+    scraped_at     = EXCLUDED.scraped_at,
+    loaded_at      = NOW()
 """
 
 _COLS = [
