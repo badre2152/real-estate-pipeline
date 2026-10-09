@@ -1,9 +1,4 @@
-"""
-db.py: Database utilities with connection pooling.
-
-FIX #28: fetch_all now consistently uses `with conn` context manager.
-FIX #53: Connection pool (ThreadedConnectionPool) replaces repeated open/close.
-"""
+"""PostgreSQL connection pooling and query utilities."""
 
 import os
 import threading
@@ -54,10 +49,12 @@ def release_connection(conn: psycopg2.extensions.connection) -> None:
 def close_pool() -> None:
     """Tear down the pool (call at end of pipeline run)."""
     global _pool
-    if _pool and not _pool.closed:
-        _pool.closeall()
-        logger.info("Connection pool closed.")
-    _pool = None
+    with _pool_lock:
+        pool = _pool
+        _pool = None
+        if pool is not None and not pool.closed:
+            pool.closeall()
+            logger.info("Connection pool closed.")
 
 
 
@@ -68,8 +65,8 @@ def execute_query(query: str, params=None) -> None:
             with conn.cursor() as cur:
                 cur.execute(query, params)
         logger.debug("Query executed.")
-    except Exception as e:
-        logger.error(f"Query failed: {e}")
+    except Exception:
+        logger.exception("Query failed")
         raise
     finally:
         release_connection(conn)
@@ -85,23 +82,22 @@ def bulk_insert(query: str, rows: list) -> None:
             with conn.cursor() as cur:
                 execute_values(cur, query, rows)
         logger.info(f"Bulk insert: {len(rows)} rows.")
-    except Exception as e:
-        logger.error(f"Bulk insert failed: {e}")
+    except Exception:
+        logger.exception("Bulk insert failed")
         raise
     finally:
         release_connection(conn)
 
 
 def fetch_all(query: str, params=None) -> list:
-    # execute_query.
     conn = get_connection()
     try:
         with conn:
             with conn.cursor() as cur:
                 cur.execute(query, params)
                 return cur.fetchall()
-    except Exception as e:
-        logger.error(f"fetch_all failed: {e}")
+    except Exception:
+        logger.exception("Fetch failed")
         raise
     finally:
         release_connection(conn)
