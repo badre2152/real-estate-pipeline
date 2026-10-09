@@ -175,6 +175,7 @@ def _upsert_caracteristiques(
         etage: int | str | None) -> int:
     nb_ch = _safe_int(nb_ch)
     nb_sb = _safe_int(nb_sb)
+    etage_value = "" if etage is None else str(etage)
     cur.execute(
         """
         INSERT INTO bi_schema.dim_caracteristiques
@@ -188,7 +189,7 @@ def _upsert_caracteristiques(
         DO NOTHING
         RETURNING id_caracteristiques
         """,
-        (nb_ch, nb_sb, etage or ""),
+        (nb_ch, nb_sb, etage_value),
     )
     row = cur.fetchone()
     if row:
@@ -200,7 +201,7 @@ def _upsert_caracteristiques(
           AND COALESCE(nb_salles_bain, -1) = COALESCE(%s, -1)
           AND etage = %s
         """,
-        (nb_ch, nb_sb, etage or ""),
+        (nb_ch, nb_sb, etage_value),
     )
     row = cur.fetchone()
     return row[0] if row is not None else 0
