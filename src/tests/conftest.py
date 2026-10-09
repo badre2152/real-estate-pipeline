@@ -13,14 +13,11 @@ import pandas as pd
 import sys
 import os
 
-# ── Make src importable without installing the package ──────────────────
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, PROJECT_ROOT)
 
 
-# ══════════════════════════════════════════════════════════════════════════════
 # BRONZE RECORD FACTORIES
-# ══════════════════════════════════════════════════════════════════════════════
 
 def make_bronze_record(**overrides) -> dict:
     """Return a minimal valid bronze record with optional field overrides."""
@@ -54,9 +51,7 @@ def make_bronze_records(n: int = 10, **overrides) -> list[dict]:
     ]
 
 
-# ══════════════════════════════════════════════════════════════════════════════
 # CLEAN DATAFRAME FACTORIES
-# ══════════════════════════════════════════════════════════════════════════════
 
 def make_clean_df(n: int = 10, **col_overrides) -> pd.DataFrame:
     """
