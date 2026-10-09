@@ -57,11 +57,18 @@ INSERT INTO staging.raw_annonces
      nb_salles_bain, etage, lien, scraped_at)
 VALUES %s
 ON CONFLICT (lien) DO UPDATE SET
-    run_id     = EXCLUDED.run_id,
-    prix       = EXCLUDED.prix,
-    prix_type  = EXCLUDED.prix_type,
-    scraped_at = EXCLUDED.scraped_at,
-    loaded_at  = NOW()
+    run_id         = EXCLUDED.run_id,
+    titre          = EXCLUDED.titre,
+    prix           = EXCLUDED.prix,
+    prix_type      = EXCLUDED.prix_type,
+    ville          = EXCLUDED.ville,
+    quartier       = EXCLUDED.quartier,
+    surface        = EXCLUDED.surface,
+    nb_chambres    = EXCLUDED.nb_chambres,
+    nb_salles_bain = EXCLUDED.nb_salles_bain,
+    etage          = EXCLUDED.etage,
+    scraped_at     = EXCLUDED.scraped_at,
+    loaded_at      = NOW()
 """
 
 _FIELDS = [
