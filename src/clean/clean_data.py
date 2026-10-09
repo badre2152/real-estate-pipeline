@@ -18,7 +18,6 @@ from src.config import GRANDES_VILLES as _GRANDES_VILLES
 logger = get_logger("clean")
 SILVER_DIR = os.path.join(os.path.dirname(__file__), "../../data/silver")
 
-# ── DDL ─────────────────────────────────────────────────────────────────
 
 _DDL_SCHEMA = "CREATE SCHEMA IF NOT EXISTS clean;"
 
@@ -44,7 +43,6 @@ CREATE TABLE IF NOT EXISTS clean.annonces (
 );
 """
 
-# FIX #14: Migrations moved to src/utils/migrations.py
 _DDL_MIGRATIONS: list[str] = []  # kept for reference only
 
 _INSERT = """
@@ -72,7 +70,6 @@ ON CONFLICT (lien) DO UPDATE SET
     loaded_at      = NOW()
 """
 
-# ── City / region reference ─────────────────────────────────────────────
 
 _VILLE_MAP = {
     "casablanca": "Casablanca", "casa": "Casablanca",
@@ -97,10 +94,8 @@ _VILLE_MAP = {
     "khouribga": "Khouribga",
     "dakhla": "Dakhla",
     "laayoune": "Laâyoune",
-    # ✅ Arabic city name variants found in real data
     "طنجة": "Tanger",
     "مراكش": "Marrakech",
-    # FIX #32: Additional Arabic city names found in scraped data.
     # These exist alongside French names: both must normalise to the same
     # canonical form.
     "الدار البيضاء": "Casablanca",
@@ -118,7 +113,6 @@ _VILLE_MAP = {
     "فاس": "Fès",
     "أكادير": "Agadir",
     "مكناس": "Meknès",
-    # ✅ FIX: مدن مكتشفة في البيانات الفعلية
     "martil": "Martil",
     "benslimane": "Benslimane",
     "nounous": "Nounous",
@@ -158,14 +152,12 @@ _REGION_MAP = {
     "Laâyoune": "Laâyoune-Sakia El Hamra",
 }
 
-# ✅ FIX: قيم quartier بلا معنى تُحوَّل إلى سلسلة فارغة
 _QUARTIER_BLACKLIST = {
     "toute la ville", "tout la ville", "autre secteur",
     "toutes les villes", "non précisé",
     "espace de coworking à casablanca",  # not a real quartier
 }
 
-# ✅ FIX: quartier normalization map for known duplicates
 _QUARTIER_NORMALIZE = {
     "centre ville": "Centre Ville",
     "centre-ville": "Centre Ville",
@@ -173,7 +165,6 @@ _QUARTIER_NORMALIZE = {
     "centre": "Centre Ville",
 }
 
-# ✅ FIX: حروف جر فرنسية لا تُحوَّل لـ Title Case
 _FRENCH_PREPOSITIONS = {
     "de",
     "du",
@@ -186,11 +177,9 @@ _FRENCH_PREPOSITIONS = {
     "et",
     "sur"}
 
-# FIX #2: حد أقصى للمساحة في سياق الإيجار السكني.
 # 800 م² هو سقف معقول: ما فوقه غالباً خطأ في الـ scraper أو إعلان تجاري.
 SURFACE_MAX_RESIDENTIAL = 800  # م²
 
-# FIX #2: حد أدنى للسعر الشهري حسب نوع المدينة.
 # إذا كان السعر أقل من هذا الحد لمدينة كبيرة → على الأرجح إيجار يومي مصنّف خطأً.
 # المبدأ: إيجار أقل من 1,000 DH/شهر في Casablanca أو Rabat = مستحيل سوقياً.
 # DH: للمدن الكبيرة (Casablanca, Rabat, Tanger...)
@@ -198,7 +187,6 @@ _PRIX_MENSUEL_MIN_GRANDE_VILLE = 1_000
 # DH: للمدن الصغيرة والمناطق السياحية (Saidia, Martil...)
 _PRIX_MENSUEL_MIN_PETITE_VILLE = 400
 
-# FIX #2: تصنيف الإيجار الشهري (مختلف كلياً عن تصنيف البيع)
 _PRIX_SEUILS_LOCATION_MENSUEL = [
     (3_000, "Très Bas"),
     (6_000, "Bas"),
@@ -207,7 +195,6 @@ _PRIX_SEUILS_LOCATION_MENSUEL = [
     (float("inf"), "Luxe"),
 ]
 
-# FIX #4: سلّم منفصل للإيجار اليومي: مختلف تماماً عن الشهري
 # 500 DH/ليلة ليس "Très Bas": هو "Moyen" في سياق الإيجار اليومي
 _PRIX_SEUILS_LOCATION_JOURNALIER = [
     (200, "Très Bas"),
@@ -225,7 +212,6 @@ _PRIX_SEUILS_VENTE = [
 ]
 
 
-# ── Parsing helpers ─────────────────────────────────────────────────────
 
 def _extract_number(text) -> float | None:
     if not isinstance(text, str):
@@ -253,7 +239,6 @@ def _clean_int(v, max_val: int = 32767) -> int | None:
     if n is None:
         return None
     n = int(n)
-    # ✅ FIX: 0 يُعامل كـ None (لا يوجد 0 حمام أو 0 غرفة)
     if n <= 0 or n > max_val:
         return None
     return n
@@ -345,7 +330,6 @@ def _categorize_prix(prix, prix_type: str = "mensuel") -> str:
     return "Luxe"
 
 
-# ── Pipeline ────────────────────────────────────────────────────────────
 
 def _fetch_staging(run_id: str | None = None) -> pd.DataFrame:
     """
@@ -385,14 +369,12 @@ def _fetch_staging(run_id: str | None = None) -> pd.DataFrame:
 
 def _apply_missing_value_strategy(df: pd.DataFrame) -> pd.DataFrame:
     n0 = len(df)
-    # ✅ FIX: حذف السطور بسعر = 0 أو سالب أو منخفض جداً (أقل من 200 DH شهرياً)
     # السعر 25 DH و499 DH هما أخطاء في الـ scraper، ليسا إيجارات حقيقية
     PRIX_MIN_THRESHOLD = 200
     df = df[df["prix"].notna() & (df["prix"] >= PRIX_MIN_THRESHOLD)]
     logger.info(
         f"Missing-value strategy: dropped {n0 - len(df)} rows with null/zero/implausibly-low prix (< {PRIX_MIN_THRESHOLD} DH)")  # noqa: E501
 
-    # FIX #35: Filter out sale listings masquerading as rental data.
     # A monthly rental above 150,000 DH is implausible for residential property;
     # values like 1,287,000 DH on a 99m² apartment are "mabni lil bai3" (for sale)
     # scraped from the rental URL due to scraper miscategorisation.
@@ -440,7 +422,6 @@ def _apply_missing_value_strategy(df: pd.DataFrame) -> pd.DataFrame:
     if pd.isna(median_etage):
         median_etage = 1
     df["etage"] = df["etage"].fillna(int(median_etage)).astype(int)
-    # FIX #4: etage = 0 → "Non précisé" (scraper artefact), others → string
     df["etage"] = df["etage"].apply(
         lambda v: "Non précisé" if v == 0 else str(v)
     )
@@ -458,7 +439,6 @@ def _apply_missing_value_strategy(df: pd.DataFrame) -> pd.DataFrame:
             df[col] = df[col].fillna(int(median_val)).astype(int)
     logger.info(f"Missing-value strategy applied. Remaining rows: {len(df)}")
 
-    # FIX #3: حذف السجلات بمساحة غير منطقية في سياق الإيجار السكني.
     # 800 م² سقف معقول: ما فوقه غالباً خطأ في الـ scraper أو إعلان
     # تجاري/صناعي.
     if "surface_m2" in df.columns:
@@ -496,7 +476,6 @@ def _clean(df: pd.DataFrame) -> pd.DataFrame:
     df["nb_salles_bain"] = df["nb_salles_bain"].apply(_clean_int)
 
     df["ville"] = df["ville"].apply(_standardize_ville)
-    # ✅ FIX: quartier ذكي: يحذف القيم بلا معنى ويحترم حروف الجر
     df["quartier"] = df["quartier"].fillna("").apply(_clean_quartier)
     if "titre" in df.columns:
         df["titre"] = df["titre"].fillna("").str.strip()
@@ -505,13 +484,11 @@ def _clean(df: pd.DataFrame) -> pd.DataFrame:
     # etage already processed above (0 → "Non précisé", others → string)
     df["scraped_at"] = pd.to_datetime(df["scraped_at"], errors="coerce")
 
-    # ✅ FIX: prix_type: أضف العمود إن لم يكن موجوداً (توافق مع staging القديمة)
     if "prix_type" not in df.columns:
         df["prix_type"] = "mensuel"
     else:
         df["prix_type"] = df["prix_type"].fillna("mensuel")
 
-    # FIX #2: كشف الإيجارات اليومية المصنّفة خطأً كشهرية: يجب أن يكون بعد
     # _clean_prix و_standardize_ville حتى تكون القيم الرقمية والمدن جاهزة.
     df["prix_type"] = df.apply(lambda row: _detect_daily_rental(
         row["prix"], row["prix_type"], row["ville"]), axis=1, )
@@ -545,7 +522,6 @@ def _clean(df: pd.DataFrame) -> pd.DataFrame:
         np.nan,
     )
 
-    # FIX #3: Log surface_m2 fill rate: prix_par_m2 is only as good as
     # surface coverage.
     n_total = len(df)
     n_surface = df["surface_m2"].notna().sum()
@@ -564,7 +540,6 @@ def _clean(df: pd.DataFrame) -> pd.DataFrame:
             "Consider improving surface extraction in the scraper."
         )
 
-    # ✅ FIX: تصنيف منفصل للإيجار vs البيع
     df["categorie_prix"] = df.apply(
         lambda row: _categorize_prix(
             row["prix"], row.get(
@@ -573,7 +548,6 @@ def _clean(df: pd.DataFrame) -> pd.DataFrame:
     df["region_label"] = df["ville"].map(_REGION_MAP).fillna("Autre")
     df["is_grande_ville"] = df["ville"].isin(_GRANDES_VILLES)
 
-    # ✅ FIX: حذف عمود surface الخام من الـ DataFrame النهائي
     if "surface" in df.columns:
         df = df.drop(columns=["surface"])
 
@@ -639,7 +613,6 @@ def _save_silver(df: pd.DataFrame) -> None:
 def _load_to_db(df: pd.DataFrame) -> None:
     execute_query(_DDL_SCHEMA)
     execute_query(_DDL_TABLE)
-    # FIX #14: Migrations removed: handled centrally by run_all_migrations()
     # in pipeline.py.
 
     cols = [
@@ -683,7 +656,6 @@ def run_clean(run_id: str | None = None) -> pd.DataFrame:
     logger.info("=== Clean layer started ===")
     df_raw = _fetch_staging(run_id=run_id)
 
-    # ── Pre-clean validation ─────────────────────────────────────────────────
     # Hard failures raise CleanValidationError and abort the pipeline.
     try:
         validate_pre_clean(df_raw)
@@ -694,7 +666,6 @@ def run_clean(run_id: str | None = None) -> pd.DataFrame:
     n_staging = len(df_raw)
     df_clean = _clean(df_raw)
 
-    # ── Post-clean validation ────────────────────────────────────────────────
     # Runs after transformation: gates the DB write and silver export.
     try:
         validate_post_clean(df_clean, n_staging)
