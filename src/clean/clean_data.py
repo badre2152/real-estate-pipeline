@@ -55,13 +55,21 @@ INSERT INTO clean.annonces
      region_label, is_grande_ville)
 VALUES %s
 ON CONFLICT (lien) DO UPDATE SET
-    prix          = EXCLUDED.prix,
-    prix_type     = EXCLUDED.prix_type,
-    surface_m2    = EXCLUDED.surface_m2,
-    nb_chambres   = EXCLUDED.nb_chambres,
-    prix_par_m2   = EXCLUDED.prix_par_m2,
-    categorie_prix= EXCLUDED.categorie_prix,
-    loaded_at     = NOW()
+    titre          = EXCLUDED.titre,
+    prix           = EXCLUDED.prix,
+    prix_type      = EXCLUDED.prix_type,
+    ville          = EXCLUDED.ville,
+    quartier       = EXCLUDED.quartier,
+    surface_m2     = EXCLUDED.surface_m2,
+    nb_chambres    = EXCLUDED.nb_chambres,
+    nb_salles_bain = EXCLUDED.nb_salles_bain,
+    etage          = EXCLUDED.etage,
+    scraped_at     = EXCLUDED.scraped_at,
+    prix_par_m2    = EXCLUDED.prix_par_m2,
+    categorie_prix = EXCLUDED.categorie_prix,
+    region_label   = EXCLUDED.region_label,
+    is_grande_ville = EXCLUDED.is_grande_ville,
+    loaded_at      = NOW()
 """
 
 # ── City / region reference ─────────────────────────────────────────────
