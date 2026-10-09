@@ -32,10 +32,10 @@ from src.config import (
 logger = get_logger("scraper")
 BRONZE_DIR = os.path.join(os.path.dirname(__file__), "../../data/bronze")
 
-# Incremental scraping — stop after this many consecutive known listings
+# Incremental scraping: stop after this many consecutive known listings
 _INCREMENTAL_STOP_AFTER = 5
 
-# ✅ FIX: كلمات مفتاحية محدّثة — تضيف studio/louer، تحذف terrain/ferme
+# ✅ FIX: كلمات مفتاحية محدّثة: تضيف studio/louer، تحذف terrain/ferme
 IMMOBILIER_KEYWORDS = [
     "appartement", "appartements",
     "maison", "maisons",
@@ -60,7 +60,7 @@ LOCATION_FALSE_POSITIVES = [
     "référence", "ref", "code",
 ]
 
-# ✅ FIX: مفردات تدل على سعر يومي — يجب الإشارة إليها في السجل
+# ✅ FIX: مفردات تدل على سعر يومي: يجب الإشارة إليها في السجل
 DAILY_RENTAL_KEYWORDS = [
     "jour", "journée", "quotidien", "quotidiennement",
     "vacances", "nuit", "nuitée", "week-end",
@@ -286,7 +286,7 @@ def _log_fill_rates(records: list[dict]) -> None:
         "prix", "ville", "quartier", "surface",
         "nb_chambres", "nb_salles_bain", "annee_construction",
     ]
-    lines = [f"\n📊 PAGE STATS — {total} records"]
+    lines = [f"\n📊 PAGE STATS: {total} records"]
     for field in key_fields:
         filled = sum(1 for r in records if r.get(field) not in ("", None))
         pct = (filled / total) * 100
@@ -298,7 +298,7 @@ def _log_fill_rates(records: list[dict]) -> None:
     daily_count = sum(1 for r in records if r.get("prix_type") == "journalier")
     if daily_count:
         logger.warning(
-            f"⚠️ {daily_count}/{total} إعلانات إيجار يومي — راجعها يدوياً")
+            f"⚠️ {daily_count}/{total} إعلانات إيجار يومي: راجعها يدوياً")
 
 
 # ── Validity guard ──────────────────────────────────────────────────────
@@ -324,7 +324,7 @@ def _get_known_liens() -> set[str]:
         logger.info(f"Incremental mode: {len(known)} liens already in DB.")
         return known
     except Exception as e:
-        logger.warning(f"Could not fetch known liens (fresh DB?): {e} — running full scrape.")
+        logger.warning(f"Could not fetch known liens (fresh DB?): {e}: running full scrape.")
         return set()
 
 
@@ -361,7 +361,7 @@ def run_scraper(max_pages: int = MAX_PAGES) -> list[dict]:
                 time.sleep(SCRAPER_TIMEOUT)
 
             if not listing_urls:
-                logger.warning("No listings found — stopping pagination.")
+                logger.warning("No listings found: stopping pagination.")
                 break
 
             for url in listing_urls:
@@ -376,7 +376,7 @@ def run_scraper(max_pages: int = MAX_PAGES) -> list[dict]:
                     if consecutive_known >= _INCREMENTAL_STOP_AFTER:
                         logger.info(
                             f"[incremental] {_INCREMENTAL_STOP_AFTER} consecutive known "
-                            f"listings — stopping early. "
+                            f"listings: stopping early. "
                             f"{len(all_records)} new records collected."
                         )
                         incremental_stopped = True
@@ -389,13 +389,13 @@ def run_scraper(max_pages: int = MAX_PAGES) -> list[dict]:
                     record = _scrape_listing(driver, url)
 
                 except InvalidSessionIdException:
-                    logger.warning("⚠️ Chrome crashed — restarting driver...")
+                    logger.warning("⚠️ Chrome crashed: restarting driver...")
                     try:
                         driver.quit()
                     except Exception:
                         pass
                     driver = _build_driver()
-                    logger.info("✅ Driver restarted — retrying URL...")
+                    logger.info("✅ Driver restarted: retrying URL...")
                     try:
                         record = _scrape_listing(driver, url)
                     except Exception as retry_exc:
@@ -449,12 +449,12 @@ def run_scraper(max_pages: int = MAX_PAGES) -> list[dict]:
         _save_bronze(all_records)
         _log_fill_rates(all_records)
     else:
-        logger.info("No new records — bronze file not written.")
+        logger.info("No new records: bronze file not written.")
 
     mode = "incremental (stopped early)" if incremental_stopped else (
            "incremental (full scan)" if known_liens else "full (fresh DB)")
     logger.info(
-        f"=== Scraper finished [{mode}] — {len(all_records)} new records "
+        f"=== Scraper finished [{mode}]: {len(all_records)} new records "
         f"| {skipped} skipped ==="
     )
     return all_records
