@@ -315,11 +315,12 @@ def _is_valid_record(record: dict) -> bool:
 
 def _get_known_liens() -> set[str]:
     """
-    Fetch all liens already stored in staging.raw_annonces.
-    Returns an empty set if DB is unreachable or table doesn't exist yet.
+    Fetch previously processed listing URLs from durable clean storage.
+    Staging is truncated after successful runs, so it cannot serve as history.
+    Returns an empty set if DB is unreachable or table does not exist yet.
     """
     try:
-        rows = fetch_all("SELECT lien FROM staging.raw_annonces WHERE lien IS NOT NULL;")
+        rows = fetch_all("SELECT lien FROM clean.annonces WHERE lien IS NOT NULL;")
         known = {row[0] for row in rows}
         logger.info(f"Incremental mode: {len(known)} liens already in DB.")
         return known
@@ -329,7 +330,7 @@ def _get_known_liens() -> set[str]:
 
 
 def _is_already_scraped(url: str, known_liens: set[str]) -> bool:
-    """Return True if this URL already exists in staging."""
+    """Return True if this URL already exists in clean storage."""
     return url in known_liens
 
 
