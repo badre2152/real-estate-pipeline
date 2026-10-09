@@ -40,15 +40,15 @@ HARD_MIN_PRIX_FILL_STAGING = float(
 SOFT_PRIX_M2_FILL = float(os.getenv("SOFT_PRIX_M2_FILL", "0.50"))
 
 # ── Price & surface ranges ──────────────────────────────────────────────
-# DH — below this = artefact
+# DH: below this = artefact
 MIN_PRIX = float(os.getenv("MIN_PRIX", "100"))
-MAX_PRIX = float(os.getenv("MAX_PRIX", "500000"))   # DH — above this = outlier
-# m² — below this = artefact
+MAX_PRIX = float(os.getenv("MAX_PRIX", "500000"))   # DH: above this = outlier
+# m²: below this = artefact
 MIN_SURFACE = float(os.getenv("MIN_SURFACE", "5"))
 MAX_SURFACE = float(os.getenv("MAX_SURFACE", "5000"))     # m²
 
 # ── Price categories (used in clean_data.py) ────────────────────────────
-# Thresholds in DH/month — values below each threshold get that label
+# Thresholds in DH/month: values below each threshold get that label
 PRICE_CATEGORIES: list[tuple[float, str]] = [
     (float(os.getenv("PRIX_TRES_BAS_MAX", "3000")), "Très Bas"),
     (float(os.getenv("PRIX_BAS_MAX", "10000")), "Bas"),
@@ -80,7 +80,7 @@ DB_POOL_MAX = int(os.getenv("DB_POOL_MAX", "10"))
 LOG_MAX_BYTES = int(os.getenv("LOG_MAX_BYTES", str(5 * 1024 * 1024)))  # 5 MB
 LOG_BACKUP_COUNT = int(os.getenv("LOG_BACKUP_COUNT", "5"))
 
-# ── Grandes villes (major cities — used for is_grande_ville flag) ───────
+# ── Grandes villes (major cities: used for is_grande_ville flag) ───────
 GRANDES_VILLES: set[str] = {
     v.strip() for v in os.getenv(
         "GRANDES_VILLES",

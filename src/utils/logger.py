@@ -97,7 +97,7 @@ def get_logger(name: str) -> logging.Logger:
 
     except Exception as exc:
         logger.warning(
-            "File logging disabled — could not create log files in "
+            "File logging disabled: could not create log files in "
             f"{LOG_DIR!r}: {exc}"
         )
 

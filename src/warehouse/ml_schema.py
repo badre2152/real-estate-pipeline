@@ -1,7 +1,7 @@
 import os
 from typing import Any
 """
-ML Schema — One Big Table (OBT) / Feature Store.
+ML Schema: One Big Table (OBT) / Feature Store.
 All features in one flat table. No encoding, scaling, or SMOTE here —
 those transformations happen in the ML notebook after extraction.
 
@@ -18,7 +18,7 @@ logger = get_logger("ml_schema")
 
 GOLD_ML_DIR = os.path.join(os.path.dirname(__file__), "../../data/gold/ml")
 
-# ✅ FIX: DDL مفصول في قائمة — لا split(";") الهش
+# ✅ FIX: DDL مفصول في قائمة: لا split(";") الهش
 _DDL_STATEMENTS = [
     "CREATE SCHEMA IF NOT EXISTS ml_schema;",
 
@@ -55,7 +55,7 @@ _DDL_STATEMENTS = [
 
 # ✅ FIX: migration لإضافة prix_type إن لم يكن موجوداً
 # FIX #14: Migrations moved to src/utils/migrations.py
-_DDL_MIGRATIONS: list[str] = []  # kept for reference only — see utils/migrations.py
+_DDL_MIGRATIONS: list[str] = []  # kept for reference only: see utils/migrations.py
 
 _INSERT = """
 INSERT INTO ml_schema.feature_store
@@ -130,7 +130,7 @@ def run_ml_schema(df: pd.DataFrame | None = None) -> None:
         return
 
     if df.empty:
-        logger.warning("DataFrame is empty — skipping ML schema load.")
+        logger.warning("DataFrame is empty: skipping ML schema load.")
         return
 
     null_prix = df["prix"].isna().sum()
@@ -140,7 +140,7 @@ def run_ml_schema(df: pd.DataFrame | None = None) -> None:
 
     if null_prix == total:
         logger.warning(
-            "All prix values are NULL — skipping feature store load.")
+            "All prix values are NULL: skipping feature store load.")
         return
 
     df = df.copy()
@@ -170,7 +170,7 @@ def run_ml_schema(df: pd.DataFrame | None = None) -> None:
 
     bulk_insert(_INSERT, safe_rows)
     logger.info(
-        f"=== ML Schema load finished — {len(safe_rows)} rows in feature_store ==="
+        f"=== ML Schema load finished: {len(safe_rows)} rows in feature_store ==="
     )
     _save_gold_ml(df[_COLS].where(pd.notna(df[_COLS]), other=float("nan")))
 
@@ -184,7 +184,7 @@ def _save_gold_ml(df: pd.DataFrame) -> None:
     from datetime import timezone
     if df.empty:
         logger.error(
-            "Gold ML: DataFrame is empty — nothing to export. "
+            "Gold ML: DataFrame is empty: nothing to export. "
             "Check that run_clean() produced data before run_ml_schema()."
         )
         return
