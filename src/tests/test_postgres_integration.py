@@ -104,3 +104,58 @@ def test_failed_migration_rolls_back_schema_and_tracking(database, monkeypatch):
                 "WHERE name LIKE 'integration_rollback_%'"
             )
             assert cursor.fetchone()[0] == 0
+
+
+def test_bi_load_rolls_back_all_rows_on_invalid_listing(database):
+    import pandas as pd
+
+    from src.warehouse.bi_schema import run_bi_schema
+
+    link = "https://example.com/integration-bi-rollback"
+    frame = pd.DataFrame([
+        {
+            "ville": "Rollback City",
+            "quartier": "Area",
+            "region_label": "Test",
+            "is_grande_ville": False,
+            "nb_chambres": 2,
+            "nb_salles_bain": 1,
+            "etage": "2",
+            "scraped_at": "2026-10-01T10:00:00",
+            "titre": "Test apartment",
+            "prix": 1000,
+            "prix_type": "mensuel",
+            "surface_m2": 50,
+            "prix_par_m2": 20,
+            "categorie_prix": "Test",
+            "lien": link,
+        },
+        {
+            "ville": "Rollback City",
+            "quartier": "Area",
+            "region_label": "Test",
+            "is_grande_ville": False,
+            "nb_chambres": 2,
+            "nb_salles_bain": 1,
+            "etage": "2",
+            "scraped_at": "not a timestamp",
+            "titre": "Invalid apartment",
+            "prix": 1000,
+            "prix_type": "mensuel",
+            "surface_m2": 50,
+            "prix_par_m2": 20,
+            "categorie_prix": "Test",
+            "lien": "https://example.com/integration-bi-invalid",
+        },
+    ])
+
+    with pytest.raises(RuntimeError, match="BI load rejected 1 of 2 rows"):
+        run_bi_schema(frame)
+
+    with database:
+        with database.cursor() as cursor:
+            cursor.execute(
+                "SELECT COUNT(*) FROM bi_schema.fact_annonce WHERE lien = %s",
+                (link,),
+            )
+            assert cursor.fetchone()[0] == 0
