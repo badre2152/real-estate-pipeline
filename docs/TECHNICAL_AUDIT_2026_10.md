@@ -1,0 +1,34 @@
+# Real Estate Pipeline: Technical Audit
+
+Audit basis: GitHub `master` on 2026-10-09. Source inspection, not a production validation. Fixes are on `audit-pipeline-reliability-2026-10`.
+
+## Scope inspected
+
+Repository tree; `src/pipeline.py`, `src/utils/db.py`, `src/staging/load_staging.py`, `src/clean/clean_data.py`, `src/extract/scraper.py`, `src/warehouse/bi_schema.py`, `src/warehouse/ml_schema.py`, `src/utils/migrations.py`, `src/config.py`, `docker-compose.yml`, and existing tests.
+
+## Findings
+
+| Severity | File / evidence | Impact | Disposition |
+| --- | --- | --- | --- |
+| High | `src/pipeline.py`: failure path calls `sys.exit(1)` before `close_pool()` originally located after the try/except | Database connections may not be released on failed runs | **Fixed**: `close_pool()` moved into `finally`. Added regression test `src/tests/test_pipeline_cleanup.py` |
+| High | `src/pipeline.py` `_cleanup_staging()` truncates `staging.raw_annonces` after success, while `src/extract/scraper.py` `_get_known_liens()` reads the same table as its incremental history | Successful runs erase the stored links used to recognize previously scraped listings | Open: decide whether to persist a dedicated listing history or retain staging without mixing run IDs |
+| Medium | `src/staging/load_staging.py` `_INSERT` updates only run_id, prix, prix_type, scraped_at and loaded_at on `lien` conflicts | A changed listing can retain stale title, city, neighborhood, surface and other fields in staging | Open: define full upsert contract and test it with PostgreSQL |
+| Medium | `src/clean/clean_data.py` `_INSERT` updates only a subset of fields on `lien` conflict | Existing cleaned listings can keep stale city, title, neighborhood, timestamps and derived fields | Open: implement a deliberate full-column update and regression coverage |
+| Medium | `src/warehouse/bi_schema.py`: fact insert uses `ON CONFLICT (lien) DO NOTHING` | BI fact records will not reflect later updates to existing listings | Open: decide append-only snapshot versus current-state reporting, and implement accordingly |
+| Medium | `src/warehouse/ml_schema.py`: feature-store insert uses `ON CONFLICT (lien) DO NOTHING` | ML feature-store rows can become stale across runs | Open: decide whether snapshots or upserts are intended |
+| Low | `src/tests/conftest.py` instructs `pytest tests/`, while tests are stored under `src/tests/` | Developer documentation could point to the wrong directory | Open: documentation cleanup |
+| Informational | `.github/workflows/ci.yml` absent on `master`; `pipeline.yml` remains | No CI checks are defined for new commits; daily scheduled ETL continues | Intentional user preference; **do not restore CI** |
+
+## Fix verification
+
+- Read-back of `src/pipeline.py` on the audit branch shows one `close_pool()` call in a `finally` clause covering the pipeline body, including `SystemExit`.
+- Added a focused regression test for migration-step failure and connection-pool closure.
+- **Not yet executed:** pytest, full PostgreSQL integration, Docker build or live scrape. These require execution, and should be reported separately from static verification.
+- No merge or production deployment performed.
+
+## Next remediation batch
+
+1. Add a durable, explicit listing history for incremental scraping; avoid data loss during staging cleanup.
+2. Decide the intended row-history model (current-state upsert vs immutable snapshots).
+3. Update stage, clean, BI, and ML conflict handling consistently and add DB-backed regression tests.
+4. Run the focused test, then broader local suite before proposing a merge.
