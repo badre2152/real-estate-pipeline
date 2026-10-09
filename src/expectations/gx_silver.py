@@ -1,5 +1,5 @@
 """
-Great Expectations — Silver (Clean) Layer Suite
+Great Expectations: Silver (Clean) Layer Suite
 =================================================
 Validates the cleaned DataFrame (silver layer) using GX expectations.
 
@@ -38,7 +38,7 @@ CURRENT_YEAR = datetime.datetime.now().year
 # ── Context ─────────────────────────────────────────────────────────────
 
 def _get_context():
-    # Use ephemeral context — nothing is written to disk, so no "suite already
+    # Use ephemeral context: nothing is written to disk, so no "suite already
     # exists" errors when the pipeline restarts inside the same container.
     return gx.get_context(mode="ephemeral")
 
@@ -100,7 +100,7 @@ def _build_silver_suite(context) -> None:
     # ── 3. Numeric ranges ───────────────────────────────────────────────────
     # Only apply range checks to columns that are always populated (prix, surface_m2,
     # prix_par_m2). Columns that are frequently NULL (nb_chambres, nb_salles_bain,
-    # age_bien, annee_construction) are skipped here — GX raises errors when
+    # age_bien, annee_construction) are skipped here: GX raises errors when
     # both bounds are None or when bound types don't match nullable column
     # types.
     validator.expect_column_values_to_be_between(
@@ -226,7 +226,7 @@ def _print_summary(run_id, evaluated, successful, failed, passed):
     status = "✅ PASSED" if passed else "❌ FAILED"
     print(
         f"\n{'='*55}\n"
-        f"  GX SILVER CHECKPOINT — {status}\n"
+        f"  GX SILVER CHECKPOINT: {status}\n"
         f"  Run       : {run_id}\n"
         f"  Evaluated : {evaluated}\n"
         f"  Passed    : {successful}\n"
