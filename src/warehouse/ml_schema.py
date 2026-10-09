@@ -18,7 +18,6 @@ logger = get_logger("ml_schema")
 
 GOLD_ML_DIR = os.path.join(os.path.dirname(__file__), "../../data/gold/ml")
 
-# ✅ FIX: DDL مفصول في قائمة: لا split(";") الهش
 _DDL_STATEMENTS = [
     "CREATE SCHEMA IF NOT EXISTS ml_schema;",
 
@@ -53,8 +52,6 @@ _DDL_STATEMENTS = [
     "CREATE INDEX IF NOT EXISTS idx_ml_type  ON ml_schema.feature_store(prix_type);",
 ]
 
-# ✅ FIX: migration لإضافة prix_type إن لم يكن موجوداً
-# FIX #14: Migrations moved to src/utils/migrations.py
 _DDL_MIGRATIONS: list[str] = []  # kept for reference only: see utils/migrations.py
 
 _INSERT = """
@@ -116,7 +113,6 @@ def _fetch_clean() -> pd.DataFrame:
 def run_ml_schema(df: pd.DataFrame | None = None) -> None:
     logger.info("=== ML Schema load started ===")
 
-    # ✅ FIX: تنفيذ كل جملة DDL بشكل مستقل
     for stmt in _DDL_STATEMENTS:
         execute_query(stmt)
 
@@ -132,7 +128,6 @@ def run_ml_schema(df: pd.DataFrame | None = None) -> None:
         df = _fetch_clean()
         logger.info(f"Loaded {len(df)} rows from clean.annonces")
 
-    # ✅ FIX: إضافة prix_type إن لم يكن موجوداً في df
     if "prix_type" not in df.columns:
         df = df.copy()
         df["prix_type"] = "mensuel"
