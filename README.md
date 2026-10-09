@@ -21,7 +21,7 @@ This project is licensed under the MIT License.
 
 ## 🎯 Project Overview
 
-This project simulates a **production-grade data pipeline**:
+This project implements an **educational data engineering pipeline**:
 
 * Extracts real estate listings via web scraping
 * Processes and cleans raw data
@@ -130,11 +130,11 @@ feature_store
 → nb_chambres
 → prix_par_m2
 → age_bien 
-+ > ⚠️ **Limitation:** `age_bien` is derived from `annee_construction`.
+> ⚠️ **Limitation:** `age_bien` is derived from `annee_construction`.
 
-+ > This field has **0% fill rate** — Avito does not expose it in the listing HTML.
+> This field has **0% fill rate** : Avito does not expose it in the listing HTML.
 
-+ > ML models should not rely on `age_bien` until a data source is found.
+> ML models should not rely on `age_bien` until a data source is found.
 → categorie_prix
 ```
 
@@ -226,13 +226,13 @@ Ce pipeline alimente directement le dashboard BI suivant :
 
 | Repo | Rôle | Lien |
 |------|------|------|
-| ⚙️ **real-estate-pipeline** *(ce repo)* | Upstream — Scraping → ETL → PostgreSQL | — |
-| 📊 **avito-dashboards-and-repports** | Downstream — Power BI Dashboards & Reports | [badre2152/avito-dashboards-and-repports](https://github.com/badre2152/avito-dashboards-and-repports) |
+| ⚙️ **real-estate-pipeline** *(ce repo)* | Upstream : Scraping → ETL → PostgreSQL | : |
+| 📊 **Real-estate-dashboard-and-repport** | Downstream : Power BI Dashboards & Reports | [badre2152/Real-estate-dashboard-and-repport](https://github.com/badre2152/Real-estate-dashboard-and-repport) |
 
 ```
 real-estate-pipeline
     └──> PostgreSQL (bi_schema)
-              └──> avito-dashboards-and-repports
+              └──> Real-estate-dashboard-and-repport
 ```
 
 > The dashboard repo consumes the `bi_schema` tables produced by this pipeline.
@@ -278,7 +278,7 @@ pytest
 
 ## 👤 Author
 
-**BRAHIM BADRE** – Data Engineering & Analytics Enthusiast
+**BRAHIM BADRE**  to  Data Engineering & Analytics Enthusiast
 
 ---
 
