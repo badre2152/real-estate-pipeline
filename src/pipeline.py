@@ -157,9 +157,9 @@ def run_pipeline() -> None:
     except Exception as exc:
         logger.critical(f"Pipeline aborted: {exc}")
         sys.exit(1)
-
-    # FIX #53: Return all connections to pool and shut it down cleanly.
-    close_pool()
+    finally:
+        # Release pooled connections even when a pipeline stage fails.
+        close_pool()
 
     elapsed = round(time.time() - t0, 1)
     logger.info("━" * 55)
