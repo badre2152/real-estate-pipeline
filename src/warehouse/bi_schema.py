@@ -422,7 +422,7 @@ def _save_gold_bi() -> None:
     try:
         for sql, stem in exports:
             try:
-                df = pd.read_sql(sql, conn.connection)  # type: ignore[arg-type]
+                df = pd.read_sql(sql, conn)
                 if df.empty:
                     logger.warning(f"Gold BI: {stem}: query returned 0 rows.")
                     continue
@@ -432,12 +432,8 @@ def _save_gold_bi() -> None:
                 logger.info(f"Gold BI CSV saved to {csv_path} ({len(df)} rows)")
 
                 parquet_path = os.path.join(part_dir, f"{stem}.parquet")
-                try:
-                    df.to_parquet(parquet_path, index=False, engine="pyarrow")
-                    logger.info(
-                        f"Gold BI Parquet saved to {parquet_path} ({len(df)} rows)")
-                except Exception as e:
-                    logger.warning(f"Gold BI Parquet skipped [{stem}]: {e}")
+                df.to_parquet(parquet_path, index=False, engine="pyarrow")
+                logger.info("Gold BI Parquet saved to %s (%s rows)", parquet_path, len(df))
 
                 exported_ok += 1
             except Exception:
