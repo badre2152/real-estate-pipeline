@@ -63,9 +63,7 @@ def _cleanup_staging() -> None:
 
 
 def run_pipeline() -> None:
-    logger.info("PIPELINE")
     logger.info("  AVITO.MA DATA PIPELINE: START")
-    logger.info("PIPELINE")
     t0 = time.time()
 
     try:
@@ -154,9 +152,7 @@ def run_pipeline() -> None:
         close_pool()
 
     elapsed = round(time.time() - t0, 1)
-    logger.info("PIPELINE")
     logger.info(f"  PIPELINE COMPLETE: {elapsed}s")
-    logger.info("PIPELINE")
 
 
 if __name__ == "__main__":
