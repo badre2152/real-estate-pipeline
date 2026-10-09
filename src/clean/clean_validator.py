@@ -84,7 +84,7 @@ def _pre_min_rows(df: pd.DataFrame) -> None:
     """HARD: staging must have enough rows to process."""
     if len(df) < HARD_MIN_STAGING_ROWS:
         raise CleanValidationError(
-            f"Staging has only {len(df)} row(s) — minimum required is "
+            f"Staging has only {len(df)} row(s): minimum required is "
             f"{HARD_MIN_STAGING_ROWS}. Nothing to clean."
         )
     logger.info(
@@ -108,7 +108,7 @@ def _pre_prix_fill(df: pd.DataFrame) -> None:
     pct = filled / len(df)
     if pct < HARD_MIN_PRIX_FILL_STAGING:
         raise CleanValidationError(
-            f"Staging prix fill rate is {pct:.0%} — below hard minimum "
+            f"Staging prix fill rate is {pct:.0%}: below hard minimum "
             f"{HARD_MIN_PRIX_FILL_STAGING:.0%}. Cleaning would be meaningless."
         )
     logger.info(f"  ✅ staging prix fill rate: {pct:.0%} ({filled}/{len(df)})")
@@ -145,14 +145,14 @@ def _pre_lien_format(df: pd.DataFrame) -> None:
 
 
 def _pre_artefact_villes(df: pd.DataFrame) -> None:
-    """SOFT: count known artefact villes — they will be dropped during cleaning."""
+    """SOFT: count known artefact villes: they will be dropped during cleaning."""
     if "ville" not in df.columns:
         return
     artefacts = df[df["ville"].isin(ARTEFACT_VILLES)]
     if len(artefacts) > 0:
         logger.warning(
             f"  ⚠️  {len(artefacts)} staging row(s) with artefact ville "
-            "(e.g. 'COURS ET FORMATIONS') — will be dropped by cleaning."
+            "(e.g. 'COURS ET FORMATIONS'): will be dropped by cleaning."
         )
     else:
         logger.info("  ✅ no artefact villes in staging")
@@ -168,7 +168,7 @@ def _post_min_rows(df_clean: pd.DataFrame, n_staging: int) -> None:
     if n < HARD_MIN_CLEAN_ROWS:
         raise CleanValidationError(
             f"Cleaned DataFrame has only {n} row(s). "
-            "Cleaning removed almost everything — check transformations."
+            "Cleaning removed almost everything: check transformations."
         )
 
     drop_rate = 1 - (n / max(n_staging, 1))
@@ -217,7 +217,7 @@ def _post_prix_fill(df: pd.DataFrame) -> None:
     pct = filled / len(df)
     if pct < HARD_MIN_PRIX_FILL_CLEAN:
         raise CleanValidationError(
-            f"Cleaned prix fill rate is {pct:.0%} — below hard minimum "
+            f"Cleaned prix fill rate is {pct:.0%}: below hard minimum "
             f"{HARD_MIN_PRIX_FILL_CLEAN:.0%}. Transformation may have broken prix parsing.")
     logger.info(f"  ✅ clean prix fill rate: {pct:.0%} ({filled}/{len(df)})")
 
@@ -228,7 +228,7 @@ def _post_ville_fill(df: pd.DataFrame) -> None:
     pct = filled / len(df)
     if pct < HARD_MIN_VILLE_FILL_CLEAN:
         raise CleanValidationError(
-            f"Cleaned ville fill rate is {pct:.0%} — below hard minimum "
+            f"Cleaned ville fill rate is {pct:.0%}: below hard minimum "
             f"{HARD_MIN_VILLE_FILL_CLEAN:.0%}."
         )
     logger.info(f"  ✅ clean ville fill rate: {pct:.0%} ({filled}/{len(df)})")
