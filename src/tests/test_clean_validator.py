@@ -66,9 +66,7 @@ PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, PROJECT_ROOT)
 
 
-# ══════════════════════════════════════════════════════════════════════════════
 # PRE-CLEAN HARD RULES
-# ══════════════════════════════════════════════════════════════════════════════
 
 
 class TestPreMinRows(unittest.TestCase):
@@ -155,9 +153,7 @@ class TestPreSoftRules(unittest.TestCase):
         _pre_artefact_villes(df)   # soft — must not raise
 
 
-# ══════════════════════════════════════════════════════════════════════════════
 # POST-CLEAN HARD RULES
-# ══════════════════════════════════════════════════════════════════════════════
 
 
 class TestPostMinRows(unittest.TestCase):
@@ -319,9 +315,7 @@ class TestPostNoArtefactVilles(unittest.TestCase):
             _post_no_artefact_villes(df)
 
 
-# ══════════════════════════════════════════════════════════════════════════════
 # POST-CLEAN SOFT RULES
-# ══════════════════════════════════════════════════════════════════════════════
 
 
 class TestPostSoftRules(unittest.TestCase):
@@ -387,9 +381,7 @@ class TestPostSoftRules(unittest.TestCase):
         _post_prix_par_m2_consistency(df)
 
 
-# ══════════════════════════════════════════════════════════════════════════════
 # INTEGRATION: validate_pre_clean() and validate_post_clean()
-# ══════════════════════════════════════════════════════════════════════════════
 
 
 class TestValidatePreCleanIntegration(unittest.TestCase):
@@ -473,9 +465,6 @@ class TestValidatePostCleanIntegration(unittest.TestCase):
         self.assertGreater(summary["clean_rows"], 0)
 
 
-# ══════════════════════════════════════════════════════════════════════════════
-# FIX #2 — journalier_suspect detection (_detect_daily_rental)
-# ══════════════════════════════════════════════════════════════════════════════
 
 
 class TestDetectDailyRental(unittest.TestCase):
@@ -545,9 +534,6 @@ class TestDetectDailyRental(unittest.TestCase):
                 r, 'mensuel', f'{ville} at 1001 DH should stay mensuel')
 
 
-# ══════════════════════════════════════════════════════════════════════════════
-# FIX #3 — Surface cap (SURFACE_MAX_RESIDENTIAL = 800 m²)
-# ══════════════════════════════════════════════════════════════════════════════
 
 
 class TestSurfaceCap(unittest.TestCase):
@@ -599,9 +585,6 @@ class TestSurfaceCap(unittest.TestCase):
             'SURFACE_MAX_RESIDENTIAL changed — update BI/ML thresholds accordingly')
 
 
-# ══════════════════════════════════════════════════════════════════════════════
-# FIX #4 — etage "0" → "Non précisé"
-# ══════════════════════════════════════════════════════════════════════════════
 
 
 class TestEtageZeroNormalization(unittest.TestCase):
