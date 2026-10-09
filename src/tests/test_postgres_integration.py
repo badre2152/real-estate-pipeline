@@ -59,3 +59,17 @@ def test_warehouse_schema_and_dimension_upserts(database):
                 "SELECT to_regclass('ml_schema.feature_store')"
             )
             assert cursor.fetchone()[0] is not None
+
+
+def test_schema_migrations_are_idempotent(database):
+    from src.utils.migrations import MIGRATIONS, run_all_migrations
+
+    run_all_migrations()
+    run_all_migrations()
+
+    with database:
+        with database.cursor() as cursor:
+            cursor.execute("SELECT name FROM public.schema_migrations")
+            names = {row[0] for row in cursor.fetchall()}
+
+    assert names == {name for name, _ in MIGRATIONS}
