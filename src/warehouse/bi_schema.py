@@ -86,8 +86,6 @@ _DDL = [
 ]
 
 _VIEWS = [
-    # FIX #Q1: journalier_suspect excluded. quartier_known exposed for filtering.
-    # FIX #Q2: annee_construction / age_bien removed (always NULL in Avito data).
     """CREATE OR REPLACE VIEW bi_schema.v_annonces_full AS
     SELECT
         f.id_annonce,
@@ -119,7 +117,6 @@ _VIEWS = [
     GROUP BY l.ville, l.region_label, f.prix_type
     ORDER BY prix_moyen DESC;
     """,
-    # FIX #Q1: New view: prix par quartier, only for known quartiers.
     # This prevents the "unknown quartier" bucket from distorting per-neighbourhood stats.
     """CREATE OR REPLACE VIEW bi_schema.v_prix_par_quartier AS
     SELECT
@@ -150,7 +147,6 @@ def _upsert_localisation(
         quartier: str | None,
         region_label: str,
         is_grande_ville: bool) -> int:
-    # FIX #Q1: quartier_known=TRUE only when quartier is a real non-empty value.
     # This lets Power BI filter out the "unknown quartier" bucket from
     # per-quartier stats.
     quartier_val = quartier or ""
@@ -191,7 +187,6 @@ def _upsert_caracteristiques(
         nb_ch: int | None,
         nb_sb: int | None,
         etage: int | str | None) -> int:
-    # FIX #Q2: annee_construction and age_bien removed: always NULL in Avito
     # data.
     nb_ch = _safe_int(nb_ch)
     nb_sb = _safe_int(nb_sb)
@@ -313,7 +308,6 @@ def run_bi_schema(df: pd.DataFrame | None = None) -> None:
     for stmt in _DDL:
         execute_query(stmt)
 
-    # FIX #14: Migrations now applied centrally in utils/migrations.py.
     # run_bi_schema() only creates base tables; the pipeline calls
     # run_all_migrations() once before any schema function.
 
@@ -334,7 +328,6 @@ def run_bi_schema(df: pd.DataFrame | None = None) -> None:
     def _val(v: Any) -> Any:
         return None if pd.isna(v) else v
 
-    # FIX #11: Use itertuples instead of iterrows.
     # iterrows() creates a full Series per row (slow + dtype coercion).
     # itertuples() yields a lightweight namedtuple: 3-5× faster.
     # We access fields by attribute name; .get() replaced by getattr with
