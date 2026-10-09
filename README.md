@@ -226,7 +226,7 @@ Ce pipeline alimente directement le dashboard BI suivant :
 
 | Repo | Rôle | Lien |
 |------|------|------|
-| ⚙️ **real-estate-pipeline** *(ce repo)* | Upstream : Scraping → ETL → PostgreSQL | : |
+| ⚙️ **real-estate-pipeline** *(ce repo)* | Upstream : Scraping → ETL → PostgreSQL | [Repository](https://github.com/badre2152/real-estate-pipeline) |
 | 📊 **Real-estate-dashboard-and-repport** | Downstream : Power BI Dashboards & Reports | [badre2152/Real-estate-dashboard-and-repport](https://github.com/badre2152/Real-estate-dashboard-and-repport) |
 
 ```
@@ -278,7 +278,7 @@ pytest
 
 ## 👤 Author
 
-**BRAHIM BADRE**  to  Data Engineering & Analytics Enthusiast
+**BRAHIM BADRE** : Data Engineering & Analytics Enthusiast
 
 ---
 
