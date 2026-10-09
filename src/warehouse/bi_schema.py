@@ -383,8 +383,12 @@ def run_bi_schema(df: pd.DataFrame | None = None) -> None:
                     cur.execute(f"ROLLBACK TO SAVEPOINT {savepoint}")
                     cur.execute(f"RELEASE SAVEPOINT {savepoint}")
                     skipped += 1
-                    logger.warning(
-                        f"Row {i} skipped: rolled back cleanly: {e}")
+                    logger.error("BI row %s failed: %s", i, e)
+
+            if skipped:
+                raise RuntimeError(
+                    f"BI load rejected {skipped} of {len(df)} rows"
+                )
 
             cur.close()
 
