@@ -22,7 +22,6 @@ BRONZE_DIR = os.path.join(os.path.dirname(__file__), "../../data/bronze")
 
 _DDL_SCHEMA = "CREATE SCHEMA IF NOT EXISTS staging;"
 
-# FIX #15: run_id column added so clean_data.py can filter by run.
 _DDL_TABLE = """
 CREATE TABLE IF NOT EXISTS staging.raw_annonces (
     id                  SERIAL PRIMARY KEY,
@@ -42,12 +41,10 @@ CREATE TABLE IF NOT EXISTS staging.raw_annonces (
 );
 """
 
-# FIX #15: Migration to add run_id to existing tables without run_id.
 _DDL_ADD_RUN_ID = """
 ALTER TABLE staging.raw_annonces ADD COLUMN IF NOT EXISTS run_id TEXT NOT NULL DEFAULT 'legacy';
 """
 
-# FIX: ON CONFLICT DO UPDATE (not DO NOTHING): required for run_id isolation correctness.
 # If the same lien was scraped in a previous run, we update run_id to the current run
 # so _fetch_staging(run_id=current_run) can find it. DO NOTHING would silently drop it,
 # causing _fetch_staging to return 0 rows for that lien in the current run.
@@ -137,7 +134,6 @@ def run_staging(
     str
         The run_id used for this staging load.
     """
-    # FIX #15: Generate a stable run_id for this invocation.
     if run_id is None:
         run_id = str(uuid.uuid4())
 
@@ -184,7 +180,6 @@ def run_staging(
 
     _qc_report(records)
 
-    # FIX STAGING-DUP: Deduplicate by lien BEFORE bulk insert.
     # PostgreSQL raises "ON CONFLICT DO UPDATE command cannot affect row a second time"
     # when the same lien appears more than once in a single INSERT batch.
     # The scraper returns 141+ duplicates (same listing seen on multiple pages).
