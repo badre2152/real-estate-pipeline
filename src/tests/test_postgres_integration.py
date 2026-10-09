@@ -159,3 +159,66 @@ def test_bi_load_rolls_back_all_rows_on_invalid_listing(database):
                 (link,),
             )
             assert cursor.fetchone()[0] == 0
+
+
+def test_ml_upsert_refreshes_existing_listing(database):
+    from psycopg2.extras import execute_values
+    from src.warehouse.ml_schema import _INSERT
+
+    link = "https://example.com/integration-ml-upsert"
+    first = (
+        1000, "Test City", "Area", 50, 2, 1, "2",
+        20, "Standard", "mensuel", "Original", link, "2026-10-01",
+    )
+    updated = (
+        1200, "Test City", "Area", 60, 2, 1, "2",
+        20, "Standard", "mensuel", "Updated", link, "2026-10-02",
+    )
+    with database:
+        with database.cursor() as cursor:
+            execute_values(cursor, _INSERT, [first])
+            execute_values(cursor, _INSERT, [updated])
+            cursor.execute(
+                "SELECT COUNT(*), MAX(prix), MAX(surface_m2), MAX(titre) "
+                "FROM ml_schema.feature_store WHERE lien = %s",
+                (link,),
+            )
+            assert cursor.fetchone() == (1, 1200, 60, "Updated")
+
+
+def test_bi_fact_upsert_refreshes_existing_listing(database, monkeypatch):
+    import pandas as pd
+    from src.warehouse import bi_schema
+
+    monkeypatch.setattr(bi_schema, "_save_gold_bi", lambda: None)
+    monkeypatch.setattr(bi_schema, "_validate", lambda inserted_this_run: None)
+    link = "https://example.com/integration-bi-upsert"
+    listing = {
+        "ville": "Upsert City",
+        "quartier": "Area",
+        "region_label": "Test",
+        "is_grande_ville": False,
+        "nb_chambres": 2,
+        "nb_salles_bain": 1,
+        "etage": "2",
+        "scraped_at": "2026-10-01T10:00:00",
+        "titre": "Original",
+        "prix": 1000,
+        "prix_type": "mensuel",
+        "surface_m2": 50,
+        "prix_par_m2": 20,
+        "categorie_prix": "Test",
+        "lien": link,
+    }
+    bi_schema.run_bi_schema(pd.DataFrame([listing]))
+    listing.update(titre="Updated", prix=1200, surface_m2=60)
+    bi_schema.run_bi_schema(pd.DataFrame([listing]))
+
+    with database:
+        with database.cursor() as cursor:
+            cursor.execute(
+                "SELECT COUNT(*), MAX(prix), MAX(surface_m2), MAX(titre) "
+                "FROM bi_schema.fact_annonce WHERE lien = %s",
+                (link,),
+            )
+            assert cursor.fetchone() == (1, 1200, 60, "Updated")
