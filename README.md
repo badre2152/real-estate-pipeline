@@ -1,4 +1,4 @@
-# 🚀 Avito Real Estate Data Pipeline
+#  Avito Real Estate Data Pipeline
 
 ![Python](https://img.shields.io/badge/python-3.10-blue)
 ![Docker](https://img.shields.io/badge/docker-enabled-blue)
@@ -7,7 +7,7 @@
 
 End-to-end data engineering project that transforms raw real estate listings from **Avito.ma** into analytics-ready datasets and machine learning features.
 ---
-## ⚠️ Disclaimer
+##  Disclaimer
 
 This project is for educational purposes only.  
 No personal data is collected or stored.  
@@ -15,11 +15,11 @@ Scraping is performed on publicly available listings with respectful rate limiti
 and all the data will not be shared and will be deleted within 2 weeks
 
 
-## 📄 License
+##  License
 This project is licensed under the MIT License.
 ---
 
-## 🎯 Project Overview
+##  Project Overview
 
 This project implements an **educational data engineering pipeline**:
 
@@ -30,7 +30,7 @@ This project implements an **educational data engineering pipeline**:
 
 ---
 
-## 🧱 Architecture
+##  Architecture
 
 ![Architecture](docs/architecture.png)
 
@@ -54,7 +54,7 @@ ML Feature Store (OBT)
 
 ---
 
-## 🛠️ Tech Stack
+##  Tech Stack
 
 * **Python** → ETL & scraping
 * **Selenium** → Data extraction
@@ -65,7 +65,7 @@ ML Feature Store (OBT)
 
 ---
 
-## 📊 Business Use Cases
+##  Business Use Cases
 
 * Track real estate price trends across cities
 * Compare price per m² by location
@@ -74,7 +74,7 @@ ML Feature Store (OBT)
 
 ---
 
-## 🗂️ Project Structure
+##  Project Structure
 
 ```
 data_pipeline/
@@ -101,7 +101,7 @@ data_pipeline/
 
 ---
 
-## 🏗️ Data Warehouse Design
+##  Data Warehouse Design
 
 ### Schemas
 
@@ -112,7 +112,7 @@ data_pipeline/
 | bi_schema | Star schema for analytics |
 | ml_schema | Feature store (ML)        |
 
-### ⭐ Star Schema (BI)
+###  Star Schema (BI)
 
 ```
 fact_annonce
@@ -121,7 +121,7 @@ fact_annonce
    └── dim_temps
 ```
 
-### 🤖 Feature Store (ML)
+###  Feature Store (ML)
 
 ```
 feature_store
@@ -130,7 +130,7 @@ feature_store
 → nb_chambres
 → prix_par_m2
 → age_bien 
-> ⚠️ **Limitation:** `age_bien` is derived from `annee_construction`.
+>  **Limitation:** `age_bien` is derived from `annee_construction`.
 
 > This field has **0% fill rate** : Avito does not expose it in the listing HTML.
 
@@ -140,7 +140,7 @@ feature_store
 
 ---
 
-## 🔄 Pipeline Workflow
+##  Pipeline Workflow
 
 ```
 run_scraper()        → bronze/*.json
@@ -153,7 +153,7 @@ _cleanup_staging()   → cleanup
 
 ---
 
-## ⚙️ Engineering Highlights
+##  Engineering Highlights
 
 * Idempotent data loading (`ON CONFLICT DO NOTHING`)
 * Retry mechanism (3 attempts)
@@ -163,7 +163,7 @@ _cleanup_staging()   → cleanup
 
 ---
 
-## 🐳 Setup & Installation
+##  Setup & Installation
 
 ### 1. Clone repository
 
@@ -195,7 +195,7 @@ DB_PASSWORD=
 
 ---
 
-## 🚀 Run the Pipeline
+##  Run the Pipeline
 
 ### Using Docker
 
@@ -212,7 +212,7 @@ python src/pipeline.py
 
 ---
 
-## 📊 Dashboard Preview
+##  Dashboard Preview
 
 
 
@@ -220,14 +220,14 @@ python src/pipeline.py
 
 ---
 
-## 🔗 Related Projects
+##  Related Projects
 
 Ce pipeline alimente directement le dashboard BI suivant :
 
 | Repo | Rôle | Lien |
 |------|------|------|
-| ⚙️ **real-estate-pipeline** *(ce repo)* | Upstream : Scraping → ETL → PostgreSQL | [Repository](https://github.com/badre2152/real-estate-pipeline) |
-| 📊 **Real-estate-dashboard-and-repport** | Downstream : Power BI Dashboards & Reports | [badre2152/Real-estate-dashboard-and-repport](https://github.com/badre2152/Real-estate-dashboard-and-repport) |
+|  **real-estate-pipeline** *(ce repo)* | Upstream : Scraping → ETL → PostgreSQL | [Repository](https://github.com/badre2152/real-estate-pipeline) |
+|  **Real-estate-dashboard-and-repport** | Downstream : Power BI Dashboards & Reports | [badre2152/Real-estate-dashboard-and-repport](https://github.com/badre2152/Real-estate-dashboard-and-repport) |
 
 ```
 real-estate-pipeline
@@ -239,17 +239,17 @@ real-estate-pipeline
 
 ---
 
-## 🔌 Power BI Integration
+##  Power BI Integration
 
 1. Connect to PostgreSQL 
-> ⚠️ Note: Docker maps PostgreSQL to port **5433** (not the default 5432).
+>  Note: Docker maps PostgreSQL to port **5433** (not the default 5432).
 > Use `localhost:5433` when connecting from Power BI or any external tool.
 2. Import `bi_schema` tables
 3. Use relationships for analysis
 
 ---
 
-## 🧪 Testing (Optional)
+##  Testing (Optional)
 
 ```bash
 pytest
@@ -257,7 +257,7 @@ pytest
 
 ---
 
-## 🛡️ Data Ethics & Compliance
+##  Data Ethics & Compliance
 
 * No personal data collected
 * Only public listings used
@@ -266,7 +266,7 @@ pytest
 
 ---
 
-## 🧠 Why This Project Stands Out
+##  Why This Project Stands Out
 
 * Implements **Medallion Architecture (Bronze/Silver/Gold)**
 * Separates **BI and ML workloads**
@@ -276,7 +276,7 @@ pytest
 
 ---
 
-## 👤 Author
+##  Author
 
 **BRAHIM BADRE** : Data Engineering & Analytics Enthusiast
 
