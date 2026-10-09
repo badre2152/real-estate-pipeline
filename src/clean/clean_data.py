@@ -613,7 +613,6 @@ def _save_silver(df: pd.DataFrame) -> None:
 def _load_to_db(df: pd.DataFrame) -> None:
     execute_query(_DDL_SCHEMA)
     execute_query(_DDL_TABLE)
-    # in pipeline.py.
 
     cols = [
         "titre", "prix", "prix_type", "ville", "quartier", "surface_m2",
@@ -624,8 +623,7 @@ def _load_to_db(df: pd.DataFrame) -> None:
 
     missing = [c for c in cols if c not in df.columns]
     if missing:
-        logger.error(f"Missing columns in DataFrame: {missing}")
-        return
+        raise ValueError(f"Missing columns in DataFrame: {missing}")
 
     sub = df[cols].where(pd.notna(df[cols]), other=float("nan"))
     INT_COLS = {'nb_chambres', 'nb_salles_bain'}
@@ -660,7 +658,7 @@ def run_clean(run_id: str | None = None) -> pd.DataFrame:
     try:
         validate_pre_clean(df_raw)
     except CleanValidationError as e:
-        logger.critical(f"❌ PRE-CLEAN VALIDATION FAILED: {e}")
+        logger.critical(f"PRE-CLEAN VALIDATION FAILED: {e}")
         raise
 
     n_staging = len(df_raw)
@@ -670,7 +668,7 @@ def run_clean(run_id: str | None = None) -> pd.DataFrame:
     try:
         validate_post_clean(df_clean, n_staging)
     except CleanValidationError as e:
-        logger.critical(f"❌ POST-CLEAN VALIDATION FAILED: {e}")
+        logger.critical(f"POST-CLEAN VALIDATION FAILED: {e}")
         raise
 
     _ml_readiness_report(df_clean)
