@@ -43,13 +43,11 @@ from src.config import (
 logger = get_logger("clean_validator")
 
 
-# ── Custom exception ────────────────────────────────────────────────────
 
 class CleanValidationError(Exception):
     """Raised when a hard validation rule fails. Stops the pipeline."""
 
 
-# ── Thresholds ──────────────────────────────────────────────────────────
 
 # Pre-clean (staging)
 HARD_MIN_STAGING_ROWS = 3     # abort if staging is nearly empty
@@ -76,9 +74,7 @@ ARTEFACT_VILLES = {
 CURRENT_YEAR = datetime.now().year
 
 
-# ══════════════════════════════════════════════════════════════════════════════
 # PRE-CLEAN RULES  (on staging DataFrame)
-# ══════════════════════════════════════════════════════════════════════════════
 
 def _pre_min_rows(df: pd.DataFrame) -> None:
     """HARD: staging must have enough rows to process."""
@@ -158,9 +154,7 @@ def _pre_artefact_villes(df: pd.DataFrame) -> None:
         logger.info("  ✅ no artefact villes in staging")
 
 
-# ══════════════════════════════════════════════════════════════════════════════
 # POST-CLEAN RULES  (on cleaned DataFrame)
-# ══════════════════════════════════════════════════════════════════════════════
 
 def _post_min_rows(df_clean: pd.DataFrame, n_staging: int) -> None:
     """HARD: cleaning must not drop too many rows."""
@@ -434,9 +428,7 @@ def _post_fill_rate_summary(df: pd.DataFrame) -> None:
     logger.info("\n".join(lines))
 
 
-# ══════════════════════════════════════════════════════════════════════════════
 # PUBLIC ENTRY POINTS
-# ══════════════════════════════════════════════════════════════════════════════
 
 def validate_pre_clean(df_staging: pd.DataFrame) -> None:
     """

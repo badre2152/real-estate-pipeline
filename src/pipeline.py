@@ -1,4 +1,8 @@
-from src.config import PIPELINE_MAX_RETRIES as MAX_RETRIES, PIPELINE_RETRY_DELAY as RETRY_DELAY, MAX_PAGES  # noqa: E501
+from src.config import (
+    PIPELINE_MAX_RETRIES as MAX_RETRIES,
+    PIPELINE_RETRY_DELAY as RETRY_DELAY,
+    MAX_PAGES,
+)
 from src.utils.logger import get_logger
 from src.utils.migrations import run_all_migrations
 from src.utils.db import execute_query, close_pool
@@ -16,7 +20,6 @@ from typing import Any, Callable
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 
-# ── Great Expectations (optional) ───────────────────────────────────────
 try:
     from src.expectations.gx_bronze import run_bronze_checkpoint
     from src.expectations.gx_silver import run_silver_checkpoint
@@ -27,7 +30,6 @@ except ImportError:
 logger = get_logger("pipeline")
 
 
-# ── Retry wrapper ───────────────────────────────────────────────────────
 
 def _run(step_name: str,
          fn: Callable[...,
@@ -36,12 +38,12 @@ def _run(step_name: str,
          **kwargs: Any) -> Any:
     for attempt in range(1, MAX_RETRIES + 1):
         try:
-            logger.info(f"[{step_name}] ── attempt {attempt}/{MAX_RETRIES}")
+            logger.info(f"[{step_name}] attempt {attempt}/{MAX_RETRIES}")
             result = fn(*args, **kwargs)
-            logger.info(f"[{step_name}] ✓ success")
+            logger.info(f"[{step_name}] success")
             return result
         except Exception as exc:
-            logger.error(f"[{step_name}] ✗ attempt {attempt} failed: {exc}")
+            logger.error(f"[{step_name}] attempt {attempt} failed: {exc}")
             if attempt < MAX_RETRIES:
                 delay = RETRY_DELAY * \
                     (2 ** (attempt - 1)) + random.uniform(0, 2)
@@ -63,22 +65,16 @@ def _cleanup_staging() -> None:
         logger.warning(f"Staging cleanup failed (non-fatal): {exc}")
 
 
-# ── Main ────────────────────────────────────────────────────────────────
 
 def run_pipeline() -> None:
-    logger.info("━" * 55)
-    logger.info("  AVITO.MA DATA PIPELINE: START")
-    logger.info("━" * 55)
+    logger.info("Pipeline started")
     t0 = time.time()
 
     try:
-        # FIX #14: Apply all centralised DDL migrations once at pipeline start.
         _run("MIGRATIONS", run_all_migrations)
 
-        # configured in src/config.py
         raw = _run("EXTRACT", run_scraper, max_pages=MAX_PAGES)
 
-        # FIX #5-log: Log page count and raw record totals for traceability.
         _pages_used = MAX_PAGES
         _raw_count = len(raw) if raw else 0
         logger.info(
@@ -86,11 +82,7 @@ def run_pipeline() -> None:
             f"valid_records={_raw_count} (after scraper validity guard)")
 
         if not raw:
-            logger.critical(
-                "EXTRACT returned an empty result set: "
-                "possible bot block or source issue. Pipeline aborted."
-            )
-            sys.exit(1)
+            raise RuntimeError("Extraction returned no records")
 
         if len(raw) < 10:
             logger.warning(
@@ -98,14 +90,10 @@ def run_pipeline() -> None:
                 "(expected ≥ 10): possible partial block."
             )
 
-        # 2: Staging (includes bronze_validator internally)
-        # FIX #15: Capture run_id returned by run_staging for run isolation.
         run_id = _run("STAGING", run_staging, raw)
 
-        # 2b: GX Bronze checkpoint (optional, runs after bronze_validator)
         if GX_ENABLED:
             import glob
-            import os
             bronze_files = sorted(
                 glob.glob(
                     os.path.join(
@@ -126,14 +114,10 @@ def run_pipeline() -> None:
         else:
             logger.info("GX not installed: skipping bronze checkpoint.")
 
-        # 3: Clean + Feature Engineering (includes clean_validator internally)
-        # FIX #15: Pass run_id so clean layer only processes this run's data.
         df_clean = _run("CLEAN", run_clean, run_id)
 
-        # 3b: GX Silver checkpoint (optional, runs after clean_validator)
         if df_clean is None or df_clean.empty:
-            logger.critical("CLEAN returned no data: pipeline aborted.")
-            sys.exit(1)
+            raise RuntimeError("Cleaning returned no records")
 
         if GX_ENABLED:
             gx_passed = run_silver_checkpoint(df_clean)
@@ -145,26 +129,20 @@ def run_pipeline() -> None:
         else:
             logger.info("GX not installed: skipping silver checkpoint.")
 
-        # 4: BI Schema (Star Schema → Power BI)
         _run("BI_SCHEMA", run_bi_schema, df_clean)
 
-        # 5: ML Schema (OBT → Feature Store)
         _run("ML_SCHEMA", run_ml_schema, df_clean)
 
-        # 6: Cleanup staging
         _cleanup_staging()
 
     except Exception as exc:
         logger.critical(f"Pipeline aborted: {exc}")
         sys.exit(1)
-
-    # FIX #53: Return all connections to pool and shut it down cleanly.
-    close_pool()
+    finally:
+        close_pool()
 
     elapsed = round(time.time() - t0, 1)
-    logger.info("━" * 55)
-    logger.info(f"  PIPELINE COMPLETE: {elapsed}s")
-    logger.info("━" * 55)
+    logger.info("Pipeline completed in %.1f seconds", elapsed)
 
 
 if __name__ == "__main__":

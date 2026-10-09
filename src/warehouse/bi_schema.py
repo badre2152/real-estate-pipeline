@@ -1,15 +1,4 @@
-"""
-BI Schema: Star Schema for Power BI / reporting.
-
-FIX #11: Replaced iterrows (slow, creates Series per row) with
-         df.itertuples() which is 3-5× faster and avoids Series overhead.
-FIX #14: _DDL_MIGRATIONS removed: now handled centrally in utils/migrations.py.
-FIX #53: Uses connection pool via get_connection() / release_connection().
-FIX #Q1: dim_localisation now has quartier_known flag + view groups
-         unknown-quartier listings separately to avoid distorting per-quartier stats.
-FIX #Q2: annee_construction removed from dim_caracteristiques (always NULL in Avito data).
-FIX #Q4: Separate prix_seuils for journalier in categorie_prix.
-"""
+"""Build and export the Power BI reporting schema."""
 
 import os
 import numpy as np
@@ -86,8 +75,6 @@ _DDL = [
 ]
 
 _VIEWS = [
-    # FIX #Q1: journalier_suspect excluded. quartier_known exposed for filtering.
-    # FIX #Q2: annee_construction / age_bien removed (always NULL in Avito data).
     """CREATE OR REPLACE VIEW bi_schema.v_annonces_full AS
     SELECT
         f.id_annonce,
@@ -119,8 +106,6 @@ _VIEWS = [
     GROUP BY l.ville, l.region_label, f.prix_type
     ORDER BY prix_moyen DESC;
     """,
-    # FIX #Q1: New view: prix par quartier, only for known quartiers.
-    # This prevents the "unknown quartier" bucket from distorting per-neighbourhood stats.
     """CREATE OR REPLACE VIEW bi_schema.v_prix_par_quartier AS
     SELECT
         l.ville,
@@ -150,9 +135,6 @@ def _upsert_localisation(
         quartier: str | None,
         region_label: str,
         is_grande_ville: bool) -> int:
-    # FIX #Q1: quartier_known=TRUE only when quartier is a real non-empty value.
-    # This lets Power BI filter out the "unknown quartier" bucket from
-    # per-quartier stats.
     quartier_val = quartier or ""
     quartier_known = bool(quartier_val.strip())
     cur.execute(
@@ -191,10 +173,9 @@ def _upsert_caracteristiques(
         nb_ch: int | None,
         nb_sb: int | None,
         etage: int | str | None) -> int:
-    # FIX #Q2: annee_construction and age_bien removed: always NULL in Avito
-    # data.
     nb_ch = _safe_int(nb_ch)
     nb_sb = _safe_int(nb_sb)
+    etage_value = "" if etage is None else str(etage)
     cur.execute(
         """
         INSERT INTO bi_schema.dim_caracteristiques
@@ -208,12 +189,11 @@ def _upsert_caracteristiques(
         DO NOTHING
         RETURNING id_caracteristiques
         """,
-        (nb_ch, nb_sb, etage or ""),
+        (nb_ch, nb_sb, etage_value),
     )
     row = cur.fetchone()
     if row:
         return row[0]
-    # Row already existed: fetch its id
     cur.execute(
         """
         SELECT id_caracteristiques FROM bi_schema.dim_caracteristiques
@@ -221,7 +201,7 @@ def _upsert_caracteristiques(
           AND COALESCE(nb_salles_bain, -1) = COALESCE(%s, -1)
           AND etage = %s
         """,
-        (nb_ch, nb_sb, etage or ""),
+        (nb_ch, nb_sb, etage_value),
     )
     row = cur.fetchone()
     return row[0] if row is not None else 0
@@ -260,13 +240,13 @@ def _upsert_temps(cur: psycopg2.extensions.cursor, scraped_at: str) -> int:
 
 
 def _validate(inserted_this_run: int) -> None:
-    logger.info("── Post-load BI validation starting ──")
+    logger.info("BI validation started")
     warnings = 0
 
     rows = fetch_all("SELECT COUNT(*) FROM bi_schema.fact_annonce;")
     total_in_db = rows[0][0] if rows else 0
     logger.info(
-        f"Validation ℹ fact_annonce: {inserted_this_run} inserted this run "
+        f"BI validation: {inserted_this_run} rows processed "
         f"| {total_in_db} total in DB"
     )
 
@@ -282,16 +262,14 @@ def _validate(inserted_this_run: int) -> None:
         """)
         orphans = rows[0][0] if rows else 0
         if orphans:
-            logger.warning(f"Validation ❌ {orphans} orphan rows ({dim})")
+            logger.warning(f"BI validation: {orphans} orphan rows in {dim}")
             warnings += 1
         else:
-            logger.info(f"Validation ✅ {dim} FK: no orphans")
+            logger.info(f"BI validation: no orphan rows in {dim}")
 
-    if warnings == 0:
-        logger.info("── Post-load BI validation PASSED ✅ ──")
-    else:
-        logger.warning(
-            f"── Post-load BI validation finished with {warnings} warning(s) ──")
+    if warnings:
+        raise RuntimeError(f"BI validation failed: {warnings} invalid dimensions")
+    logger.info("BI validation passed")
 
 
 def _fetch_clean() -> pd.DataFrame:
@@ -313,9 +291,6 @@ def run_bi_schema(df: pd.DataFrame | None = None) -> None:
     for stmt in _DDL:
         execute_query(stmt)
 
-    # FIX #14: Migrations now applied centrally in utils/migrations.py.
-    # run_bi_schema() only creates base tables; the pipeline calls
-    # run_all_migrations() once before any schema function.
 
     logger.info("BI Schema DDL applied.")
 
@@ -334,11 +309,6 @@ def run_bi_schema(df: pd.DataFrame | None = None) -> None:
     def _val(v: Any) -> Any:
         return None if pd.isna(v) else v
 
-    # FIX #11: Use itertuples instead of iterrows.
-    # iterrows() creates a full Series per row (slow + dtype coercion).
-    # itertuples() yields a lightweight namedtuple: 3-5× faster.
-    # We access fields by attribute name; .get() replaced by getattr with
-    # default.
     rows_iter = df.reset_index(drop=True).itertuples(index=True, name="Row")
 
     try:
@@ -373,7 +343,7 @@ def run_bi_schema(df: pd.DataFrame | None = None) -> None:
                         _safe_int(_g("etage")),
                     )
                     _scraped_at = getattr(row, "scraped_at", None)
-                    _scraped_at_str = str(_scraped_at) if _scraped_at is not None else datetime.utcnow().isoformat()  # noqa: E501
+                    _scraped_at_str = str(_scraped_at) if _scraped_at is not None else datetime.utcnow().isoformat()
                     id_tps = _upsert_temps(cur, _scraped_at_str)
 
                     cur.execute(
@@ -383,7 +353,17 @@ def run_bi_schema(df: pd.DataFrame | None = None) -> None:
                              titre, prix, prix_type, surface_m2, prix_par_m2,
                              categorie_prix, lien)
                         VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
-                        ON CONFLICT (lien) DO NOTHING
+                        ON CONFLICT (lien) DO UPDATE SET
+                            id_localisation = EXCLUDED.id_localisation,
+                            id_caracteristiques = EXCLUDED.id_caracteristiques,
+                            id_temps = EXCLUDED.id_temps,
+                            titre = EXCLUDED.titre,
+                            prix = EXCLUDED.prix,
+                            prix_type = EXCLUDED.prix_type,
+                            surface_m2 = EXCLUDED.surface_m2,
+                            prix_par_m2 = EXCLUDED.prix_par_m2,
+                            categorie_prix = EXCLUDED.categorie_prix,
+                            loaded_at = NOW()
                         """,
                         (
                             id_loc, id_car, id_tps,
@@ -404,8 +384,12 @@ def run_bi_schema(df: pd.DataFrame | None = None) -> None:
                     cur.execute(f"ROLLBACK TO SAVEPOINT {savepoint}")
                     cur.execute(f"RELEASE SAVEPOINT {savepoint}")
                     skipped += 1
-                    logger.warning(
-                        f"Row {i} skipped: rolled back cleanly: {e}")
+                    logger.error("BI row %s failed: %s", i, e)
+
+            if skipped:
+                raise RuntimeError(
+                    f"BI load rejected {skipped} of {len(df)} rows"
+                )
 
             cur.close()
 
@@ -416,30 +400,16 @@ def run_bi_schema(df: pd.DataFrame | None = None) -> None:
         f"=== BI Schema load finished: {count} inserted, {skipped} skipped ==="
     )
 
-    views_ok = 0
     for view_sql in _VIEWS:
-        try:
-            execute_query(view_sql)
-            views_ok += 1
-        except Exception as e:
-            logger.warning(f"Could not create view: {e}")
-    if views_ok == len(_VIEWS):
-        logger.info("Power BI helper views created successfully.")
-    else:
-        logger.warning(
-            f"Only {views_ok}/{len(_VIEWS)} views created: check warnings above.")
+        execute_query(view_sql)
+    logger.info("Power BI helper views created successfully.")
 
     _validate(inserted_this_run=count)
     _save_gold_bi()
 
 
 def _save_gold_bi() -> None:
-    """
-    Export BI gold layer partitioned by date only:
-      data/gold/bi/YYYY/MM/DD/annonces_full_<ts>.csv + .parquet
-      data/gold/bi/YYYY/MM/DD/prix_par_ville_<ts>.csv + .parquet
-      data/gold/bi/YYYY/MM/DD/prix_par_quartier_<ts>.csv + .parquet
-    """
+    """Export dated BI snapshots to CSV and Parquet."""
     from datetime import timezone
     ts = datetime.now(tz=timezone.utc).strftime("%Y%m%d_%H%M%S")
     date_pfx = datetime.now(tz=timezone.utc).strftime("%Y/%m/%d")
@@ -457,35 +427,28 @@ def _save_gold_bi() -> None:
     try:
         for sql, stem in exports:
             try:
-                df = pd.read_sql(sql, conn.connection)  # type: ignore[arg-type]
+                df = pd.read_sql(sql, conn)
                 if df.empty:
                     logger.warning(f"Gold BI: {stem}: query returned 0 rows.")
                     continue
 
-                # CSV
                 csv_path = os.path.join(part_dir, f"{stem}.csv")
                 df.to_csv(csv_path, index=False, encoding="utf-8")
-                logger.info(f"Gold BI CSV     → {csv_path}  ({len(df)} rows)")
+                logger.info(f"Gold BI CSV saved to {csv_path} ({len(df)} rows)")
 
-                # Parquet
                 parquet_path = os.path.join(part_dir, f"{stem}.parquet")
-                try:
-                    df.to_parquet(parquet_path, index=False, engine="pyarrow")
-                    logger.info(
-                        f"Gold BI Parquet → {parquet_path}  ({len(df)} rows)")
-                except Exception as e:
-                    logger.warning(f"Gold BI Parquet skipped [{stem}]: {e}")
+                df.to_parquet(parquet_path, index=False, engine="pyarrow")
+                logger.info("Gold BI Parquet saved to %s (%s rows)", parquet_path, len(df))
 
                 exported_ok += 1
-            except Exception as e:
-                logger.warning(f"Gold BI export failed for {stem}: {e}")
+            except Exception:
+                logger.exception("Gold BI export failed for %s", stem)
+                raise
     finally:
         release_connection(conn)
 
     if exported_ok == 0:
-        logger.error(
-            "Gold BI: ALL exports produced 0 rows or failed. "
-            "The bi_schema tables may be empty: verify the pipeline ran end-to-end.")
+        raise RuntimeError("Gold BI export produced no data")
     else:
         logger.info(
             f"Gold BI: {exported_ok}/{len(exports)} exports saved successfully.")

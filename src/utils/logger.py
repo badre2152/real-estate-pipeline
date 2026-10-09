@@ -2,14 +2,12 @@ import logging
 import os
 from logging.handlers import RotatingFileHandler
 
-# ── Paths ───────────────────────────────────────────────────────────────
 _THIS_FILE = os.path.abspath(__file__)
 LOG_DIR = os.path.normpath(
     os.path.join(
         os.path.dirname(_THIS_FILE),
         "../../logs"))
 
-# ── Rotation settings (from config) ─────────────────────────────────────
 # Import lazily to avoid circular imports (logger is imported by config
 # indirectly)
 try:
@@ -76,7 +74,6 @@ def get_logger(name: str) -> logging.Logger:
     # prevent duplicate messages via root logger
     logger.propagate = False
 
-    # ── Console handler ─────────────────────────────────────────────────────
     ch = logging.StreamHandler()
     ch.setLevel(logging.INFO)
     ch.setFormatter(_FORMATTER)
@@ -85,11 +82,9 @@ def get_logger(name: str) -> logging.Logger:
     try:
         os.makedirs(LOG_DIR, exist_ok=True)
 
-        # ── Shared pipeline.log (every logger writes here) ───────────────────
         pipeline_log = os.path.join(LOG_DIR, "pipeline.log")
         logger.addHandler(_make_rotating_handler(pipeline_log))
 
-        # ── Per-stage log file (only for known stage names) ──────────────────
         stage_filename = _STAGE_FILES.get(name)
         if stage_filename and stage_filename != "pipeline.log":
             stage_log = os.path.join(LOG_DIR, stage_filename)
