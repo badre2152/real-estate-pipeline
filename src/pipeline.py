@@ -1,4 +1,8 @@
-from src.config import PIPELINE_MAX_RETRIES as MAX_RETRIES, PIPELINE_RETRY_DELAY as RETRY_DELAY, MAX_PAGES  # noqa: E501
+from src.config import (
+    PIPELINE_MAX_RETRIES as MAX_RETRIES,
+    PIPELINE_RETRY_DELAY as RETRY_DELAY,
+    MAX_PAGES,
+)
 from src.utils.logger import get_logger
 from src.utils.migrations import run_all_migrations
 from src.utils.db import execute_query, close_pool
@@ -63,7 +67,7 @@ def _cleanup_staging() -> None:
 
 
 def run_pipeline() -> None:
-    logger.info("  AVITO.MA DATA PIPELINE: START")
+    logger.info("Pipeline started")
     t0 = time.time()
 
     try:
@@ -78,11 +82,7 @@ def run_pipeline() -> None:
             f"valid_records={_raw_count} (after scraper validity guard)")
 
         if not raw:
-            logger.critical(
-                "EXTRACT returned an empty result set: "
-                "possible bot block or source issue. Pipeline aborted."
-            )
-            sys.exit(1)
+            raise RuntimeError("Extraction returned no records")
 
         if len(raw) < 10:
             logger.warning(
@@ -90,13 +90,10 @@ def run_pipeline() -> None:
                 "(expected ≥ 10): possible partial block."
             )
 
-        # 2: Staging (includes bronze_validator internally)
         run_id = _run("STAGING", run_staging, raw)
 
-        # 2b: GX Bronze checkpoint (optional, runs after bronze_validator)
         if GX_ENABLED:
             import glob
-            import os
             bronze_files = sorted(
                 glob.glob(
                     os.path.join(
@@ -117,13 +114,10 @@ def run_pipeline() -> None:
         else:
             logger.info("GX not installed: skipping bronze checkpoint.")
 
-        # 3: Clean + Feature Engineering (includes clean_validator internally)
         df_clean = _run("CLEAN", run_clean, run_id)
 
-        # 3b: GX Silver checkpoint (optional, runs after clean_validator)
         if df_clean is None or df_clean.empty:
-            logger.critical("CLEAN returned no data: pipeline aborted.")
-            sys.exit(1)
+            raise RuntimeError("Cleaning returned no records")
 
         if GX_ENABLED:
             gx_passed = run_silver_checkpoint(df_clean)
@@ -135,24 +129,20 @@ def run_pipeline() -> None:
         else:
             logger.info("GX not installed: skipping silver checkpoint.")
 
-        # 4: BI Schema (Star Schema → Power BI)
         _run("BI_SCHEMA", run_bi_schema, df_clean)
 
-        # 5: ML Schema (OBT → Feature Store)
         _run("ML_SCHEMA", run_ml_schema, df_clean)
 
-        # 6: Cleanup staging
         _cleanup_staging()
 
     except Exception as exc:
         logger.critical(f"Pipeline aborted: {exc}")
         sys.exit(1)
     finally:
-        # Release pooled connections even when a pipeline stage fails.
         close_pool()
 
     elapsed = round(time.time() - t0, 1)
-    logger.info(f"  PIPELINE COMPLETE: {elapsed}s")
+    logger.info("Pipeline completed in %.1f seconds", elapsed)
 
 
 if __name__ == "__main__":
