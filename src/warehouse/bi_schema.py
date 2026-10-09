@@ -1,9 +1,9 @@
 """
-BI Schema — Star Schema for Power BI / reporting.
+BI Schema: Star Schema for Power BI / reporting.
 
 FIX #11: Replaced iterrows (slow, creates Series per row) with
          df.itertuples() which is 3-5× faster and avoids Series overhead.
-FIX #14: _DDL_MIGRATIONS removed — now handled centrally in utils/migrations.py.
+FIX #14: _DDL_MIGRATIONS removed: now handled centrally in utils/migrations.py.
 FIX #53: Uses connection pool via get_connection() / release_connection().
 FIX #Q1: dim_localisation now has quartier_known flag + view groups
          unknown-quartier listings separately to avoid distorting per-quartier stats.
@@ -119,7 +119,7 @@ _VIEWS = [
     GROUP BY l.ville, l.region_label, f.prix_type
     ORDER BY prix_moyen DESC;
     """,
-    # FIX #Q1: New view — prix par quartier, only for known quartiers.
+    # FIX #Q1: New view: prix par quartier, only for known quartiers.
     # This prevents the "unknown quartier" bucket from distorting per-neighbourhood stats.
     """CREATE OR REPLACE VIEW bi_schema.v_prix_par_quartier AS
     SELECT
@@ -191,7 +191,7 @@ def _upsert_caracteristiques(
         nb_ch: int | None,
         nb_sb: int | None,
         etage: int | str | None) -> int:
-    # FIX #Q2: annee_construction and age_bien removed — always NULL in Avito
+    # FIX #Q2: annee_construction and age_bien removed: always NULL in Avito
     # data.
     nb_ch = _safe_int(nb_ch)
     nb_sb = _safe_int(nb_sb)
@@ -213,7 +213,7 @@ def _upsert_caracteristiques(
     row = cur.fetchone()
     if row:
         return row[0]
-    # Row already existed — fetch its id
+    # Row already existed: fetch its id
     cur.execute(
         """
         SELECT id_caracteristiques FROM bi_schema.dim_caracteristiques
@@ -336,7 +336,7 @@ def run_bi_schema(df: pd.DataFrame | None = None) -> None:
 
     # FIX #11: Use itertuples instead of iterrows.
     # iterrows() creates a full Series per row (slow + dtype coercion).
-    # itertuples() yields a lightweight namedtuple — 3-5× faster.
+    # itertuples() yields a lightweight namedtuple: 3-5× faster.
     # We access fields by attribute name; .get() replaced by getattr with
     # default.
     rows_iter = df.reset_index(drop=True).itertuples(index=True, name="Row")
@@ -405,7 +405,7 @@ def run_bi_schema(df: pd.DataFrame | None = None) -> None:
                     cur.execute(f"RELEASE SAVEPOINT {savepoint}")
                     skipped += 1
                     logger.warning(
-                        f"Row {i} skipped — rolled back cleanly: {e}")
+                        f"Row {i} skipped: rolled back cleanly: {e}")
 
             cur.close()
 
@@ -413,7 +413,7 @@ def run_bi_schema(df: pd.DataFrame | None = None) -> None:
         release_connection(conn)
 
     logger.info(
-        f"=== BI Schema load finished — {count} inserted, {skipped} skipped ==="
+        f"=== BI Schema load finished: {count} inserted, {skipped} skipped ==="
     )
 
     views_ok = 0
@@ -427,7 +427,7 @@ def run_bi_schema(df: pd.DataFrame | None = None) -> None:
         logger.info("Power BI helper views created successfully.")
     else:
         logger.warning(
-            f"Only {views_ok}/{len(_VIEWS)} views created — check warnings above.")
+            f"Only {views_ok}/{len(_VIEWS)} views created: check warnings above.")
 
     _validate(inserted_this_run=count)
     _save_gold_bi()
@@ -459,7 +459,7 @@ def _save_gold_bi() -> None:
             try:
                 df = pd.read_sql(sql, conn.connection)  # type: ignore[arg-type]
                 if df.empty:
-                    logger.warning(f"Gold BI — {stem}: query returned 0 rows.")
+                    logger.warning(f"Gold BI: {stem}: query returned 0 rows.")
                     continue
 
                 # CSV
@@ -485,7 +485,7 @@ def _save_gold_bi() -> None:
     if exported_ok == 0:
         logger.error(
             "Gold BI: ALL exports produced 0 rows or failed. "
-            "The bi_schema tables may be empty — verify the pipeline ran end-to-end.")
+            "The bi_schema tables may be empty: verify the pipeline ran end-to-end.")
     else:
         logger.info(
             f"Gold BI: {exported_ok}/{len(exports)} exports saved successfully.")
