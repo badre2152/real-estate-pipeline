@@ -1,5 +1,5 @@
 """
-Great Expectations — Bronze Layer Suite
+Great Expectations: Bronze Layer Suite
 =========================================
 Validates raw scraped records (bronze JSON) using GX expectations.
 
@@ -35,7 +35,7 @@ ASSET_NAME = "bronze_asset"
 # ── Context ─────────────────────────────────────────────────────────────
 
 def _get_context():
-    # Use ephemeral context — nothing is written to disk, so no "suite already
+    # Use ephemeral context: nothing is written to disk, so no "suite already
     # exists" errors when the pipeline restarts inside the same container.
     return gx.get_context(mode="ephemeral")
 
@@ -57,7 +57,7 @@ def _build_bronze_suite(context) -> None:
     # GX infers column types and validates expectations against actual data shapes.
     # An empty DataFrame causes GX to treat every column as object dtype,
     # making numeric expectations (expect_column_values_to_be_between) trivially pass
-    # on nulls — masking real data quality issues at runtime.
+    # on nulls: masking real data quality issues at runtime.
     dummy_df = pd.DataFrame([
         {
             "titre": "Appartement 3 chambres à louer - Casablanca",
@@ -241,7 +241,7 @@ def _print_summary(filename, evaluated, successful, failed, passed):
     status = "✅ PASSED" if passed else "❌ FAILED"
     print(
         f"\n{'='*50}\n"
-        f"  GX BRONZE CHECKPOINT — {status}\n"
+        f"  GX BRONZE CHECKPOINT: {status}\n"
         f"  File      : {filename}\n"
         f"  Evaluated : {evaluated}\n"
         f"  Passed    : {successful}\n"
